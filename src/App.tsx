@@ -393,7 +393,17 @@ function App() {
                 onEdgeContextMenu={onEdgeContextMenu}
                 onPaneClick={onPaneClick}
               >
-                <Controls />
+                <Controls
+                  showZoom={true}
+                  showFitView={true}
+                  showInteractive={true}
+                  style={{
+                    bottom: 20,
+                    left: 20,
+                    boxShadow: '0 0 10px rgba(12, 235, 235, 0.3)',
+                    background: 'rgba(25, 32, 56, 0.8)',
+                  }}
+                />
                 <Background />
                 <Panel position="top-right" style={{ marginTop: 65, marginRight: 10 }}>
                   <button

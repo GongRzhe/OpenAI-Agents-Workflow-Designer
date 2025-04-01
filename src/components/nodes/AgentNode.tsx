@@ -119,8 +119,13 @@ const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable
 
         <CardContent sx={{ padding: '10px 16px !important' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <AccountTreeIcon sx={{ mr: 1, color: '#3498db' }} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            <AccountTreeIcon sx={{ mr: 1, color: '#0cebeb' }} />
+            <Typography variant="subtitle1" sx={{
+              fontWeight: 'bold',
+              color: '#0cebeb',  // Bright cyan color for better visibility
+              textShadow: '0 0 5px rgba(12, 235, 235, 0.5)',
+              fontFamily: '"Orbitron", sans-serif'
+            }}>
               Agent
             </Typography>
           </Box>

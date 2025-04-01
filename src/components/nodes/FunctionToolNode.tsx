@@ -116,8 +116,13 @@ const FunctionToolNode: React.FC<NodeProps<FunctionToolNodeData>> = ({ id, data,
 
         <CardContent sx={{ padding: '10px 16px !important' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <BuildIcon sx={{ mr: 1, color: '#f39c12' }} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            <BuildIcon sx={{ mr: 1, color: '#FF9800' }} />
+            <Typography variant="subtitle1" sx={{
+              fontWeight: 'bold',
+              color: '#FF9800',  // Bright orange color for better visibility
+              textShadow: '0 0 5px rgba(255, 152, 0, 0.5)',
+              fontFamily: '"Orbitron", sans-serif'
+            }}>
               Function Tool
             </Typography>
           </Box>

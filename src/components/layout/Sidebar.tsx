@@ -40,7 +40,17 @@ const Sidebar: React.FC = () => {
     >
       <Toolbar />
       <Box sx={{ overflow: 'auto', p: 1 }}>
-        <Typography variant="h6" gutterBottom sx={{ textAlign: 'center', mt: 1 }}>
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{
+            textAlign: 'center',
+            mt: 1,
+            color: '#0cebeb',  // Bright cyan color
+            fontFamily: '"Orbitron", sans-serif',
+            textShadow: '0 0 10px rgba(12, 235, 235, 0.5)',
+          }}
+        >
           Components
         </Typography>
         <Divider />
@@ -151,8 +161,22 @@ const Sidebar: React.FC = () => {
           </ListItem>
         </List>
         <Divider sx={{ my: 2 }} />
-        <Box sx={{ p: 2, mt: 'auto', backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-          <Typography variant="body2" color="textSecondary">
+        <Box sx={{
+          p: 2,
+          mt: 'auto',
+          backgroundColor: 'rgba(25, 32, 56, 0.8)',
+          border: '1px solid rgba(12, 235, 235, 0.3)',
+          borderRadius: 1,
+          boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.3)'
+        }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: '#f6f8ff',
+              fontFamily: '"Orbitron", sans-serif',
+              fontSize: '0.75rem'
+            }}
+          >
             Drag components onto the canvas to build your workflow. Connect nodes to define relationships.
           </Typography>
         </Box>

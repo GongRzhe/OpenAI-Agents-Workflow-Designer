@@ -122,8 +122,13 @@ const RunnerNode: React.FC<NodeProps<RunnerNodeData>> = ({ id, data, isConnectab
 
         <CardContent sx={{ padding: '10px 16px !important' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <PlayCircleOutlineIcon sx={{ mr: 1, color: '#e74c3c' }} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            <PlayCircleOutlineIcon sx={{ mr: 1, color: '#F44336' }} />
+            <Typography variant="subtitle1" sx={{
+              fontWeight: 'bold',
+              color: '#F44336',  // Bright red color for better visibility
+              textShadow: '0 0 5px rgba(244, 67, 54, 0.5)',
+              fontFamily: '"Orbitron", sans-serif'
+            }}>
               Runner
             </Typography>
           </Box>
