@@ -46,8 +46,8 @@ Thanks to AI master [AI超元域](https://www.youtube.com/watch?v=KQULGx6wjco) a
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/GongRzhe/Openai-Agents-Designer.git
-   cd Openai-Agents-Designer
+   git clone https://github.com/GongRzhe/OpenAI-Agents-Workflow-Designer.git
+   cd OpenAI-Agents-Workflow-Designer
    ```
 
 2. Install dependencies:
@@ -110,7 +110,7 @@ Custom Python functions that can be used by agents.
 ## Project Structure
 
 ```
-Openai-Agents-Designer/
+OpenAI-Agents-Workflow-Designer/
 ├── public/             # Static assets
 ├── src/
 │   ├── assets/         # Images, fonts, etc.
