@@ -2,197 +2,140 @@
 
 ## Project Overview
 
-The OpenAI Agents Workflow Designer is a visual tool for creating, configuring, and connecting AI agent systems. It enables users to design complex agent workflows through an intuitive drag-and-drop interface and automatically generates the corresponding Python code.
+The OpenAI Agents Workflow Designer provides a visual drag-and-drop interface for creating AI agent workflows and generating Python code.
 
 ### Core Goals
 
-- Provide a visual interface for designing OpenAI agent workflows
-- Allow intuitive configuration of agent properties
-- Support component connections to define data and control flow
-- Generate production-ready Python code
-- Enable easy modification and iteration of designs
+- Visual interface for designing OpenAI agent workflows
+- Intuitive configuration of agent properties
+- Connection system for data and control flow
+- Production-ready Python code generation
+- Easy workflow modification and iteration
+- **NEW: Direct execution of generated Python code**
 
 ## Architecture
 
 ### Technology Stack
 
-- **Frontend Framework**: React with TypeScript
+- **Frontend**: React with TypeScript
 - **UI Components**: Material-UI (MUI)
 - **Flow Visualization**: ReactFlow
 - **Build System**: Vite
 - **State Management**: React Context API
-
-### Component Structure
-
-```
-src/
-├── components/
-│   ├── common/           # Shared components like modals, menus
-│   ├── layout/           # Layout components (Navbar, Sidebar)
-│   └── nodes/            # Node implementations for different component types
-├── context/              # Context providers for state management
-├── utils/                # Utility functions and code generation
-├── App.tsx               # Main application component
-└── main.tsx              # Application entry point
-```
+- **NEW: Python Execution**: Virtual environment in SandBox directory
 
 ## Node Types
 
-1. **Agent Node**
-   - Represents an OpenAI agent
-   - Configurable instructions, name, and handoff descriptions
-   - Connects to Runners and Function Tools
+1. **Agent Node**: OpenAI agent with configurable instructions
+2. **Runner Node**: Execution environment with input/output handling
+3. **Function Tool Node**: Custom Python functions for agent use
 
-2. **Runner Node**
-   - Execution environment for agents
-   - Configurable input and execution mode (sync/async)
-   - Acts as a flow controller
+## Feature Status
 
-3. **Function Tool Node**
-   - Custom Python functions that agents can use
-   - Configurable parameters, return types, and implementation
-   - Provides extended functionality to agents
+### Implemented ✅
 
-## Feature Roadmap
+- Drag and drop node placement
+- Node property configuration
+- Edge connections with visual enhancements
+- Python code generation
+- Node resizing and deletion
+- Import/export functionality
+- Sci-fi themed UI with enhanced connection points
 
-### Core Features (Implemented)
+### Current Sprint 🔄
 
-- [x] Drag and drop node placement
-- [x] Node property configuration
-- [x] Edge connections between nodes
-- [x] Python code generation
-- [x] Node resizing
+- UI/UX improvements
+  - Enhanced connection point visibility
+  - Scrollbar and dropdown styling
+  - Delete button in navbar
+  - Connection type indicators
+- **Python Code Execution Environment (Planning)**
 
-### Current Sprint
+### Python Code Execution System
 
-- [ ] Node and edge deletion
-  - Keyboard shortcuts (Delete/Backspace)
-  - Context menu
-  - Delete button in UI
-- [ ] Improved node selection
-- [ ] Multi-node operations
+We will implement a system to execute the generated Python code directly within the application using a Python virtual environment in the SandBox directory:
 
-### Future Features
+#### Components
 
-- [ ] Save/load workflows
-- [ ] Workflow validation
-- [ ] Undo/redo functionality
-- [ ] Import/export to JSON
-- [ ] Template workflows
-- [ ] Integration with OpenAI API for testing
+1. **Python Environment Management**:
+   - Virtual environment creation and activation script
+   - Basic dependency installation (openai, asyncio, etc.)
+   - Requirements.txt management for custom dependencies
 
-## Implementation Details
+2. **Execution Bridge**:
+   - Node.js backend server to interface with Python
+   - API endpoints for code submission and execution
+   - Secure execution sandbox with timeouts and resource limits
 
-### Node/Edge Deletion Feature
+3. **UI Integration**:
+   - Execute button alongside Generate Code
+   - Real-time execution status feedback
+   - Results panel for viewing outputs
+   - Error handling and display
 
-The deletion feature will provide multiple interaction paths:
+#### Implementation Approach
 
-#### 1. Keyboard Shortcuts
-- **Delete** or **Backspace** keys will delete selected nodes/edges
-- Implementation using ReactFlow's `useKeyPress` hook:
+1. **Phase 1: Basic Execution**
+   - Set up Python virtual environment in SandBox
+   - Create simple execution script
+   - Implement basic frontend-to-Python bridge
+   - Add execution results display
 
-```typescript
-const deleteKeyPressed = useKeyPress(['Delete', 'Backspace']);
+2. **Phase 2: Enhanced Features**
+   - Add dependency management
+   - Implement proper error handling
+   - Add execution history
+   - Create debug mode with step execution
 
-useEffect(() => {
-  if (deleteKeyPressed) {
-    onDeleteElements();
-  }
-}, [deleteKeyPressed, onDeleteElements]);
-```
+3. **Phase 3: Advanced Integration**
+   - Live code editing and testing
+   - Variable inspection
+   - Performance monitoring
+   - OpenAI API key management
 
-#### 2. Context Menu
-- Right-click on nodes/edges to show a context menu with delete option
-- Implemented as a custom component:
+### Upcoming Features 📋
 
-```typescript
-const [contextMenu, setContextMenu] = useState<{
-  x: number;
-  y: number;
-  nodeId?: string; 
-  edgeId?: string;
-} | null>(null);
+- Copy/paste functionality
+- Undo/redo system
+- Workflow validation
+- Enhanced code generation options
+- Template workflows
+- OpenAI API integration
 
-const onNodeContextMenu = useCallback((event, node) => {
-  // Show context menu
-}, [setNodes]);
-```
+## Technical Implementation Details
 
-#### 3. Delete Button
-- UI button in the canvas controls area
-- Uses the same deletion logic as other methods:
+### Connection Points Enhancement
 
-```typescript
-const onDeleteElements = useCallback(() => {
-  const selectedNodes = nodes.filter(node => node.selected);
-  const selectedEdges = edges.filter(edge => edge.selected);
-  
-  // Create and apply deletion changes
-  const nodeChanges = selectedNodes.map(node => ({
-    id: node.id,
-    type: 'remove' as const,
-  }));
-  
-  // Similar for edges...
-}, [nodes, edges, setNodes, setEdges]);
-```
+- Increased size (12px standard, 16px on hover)
+- Color-coding by node type:
+  - Agent: Cyan (#0cebeb)
+  - Runner: Red (#F44336)
+  - Tool: Orange (#FF9800)
 
-### Changes Required
+### Python Execution Technical Details
 
-1. **App.tsx**:
-   - Add imports for new functionality: `useKeyPress`, `applyEdgeChanges`
-   - Add state for context menu
-   - Implement handlers for deletion operations
-   - Update ReactFlow component with new event handlers
+- Python 3.9+ virtual environment
+- Dependency isolation for each execution
+- Secure code execution with timeouts
+- Output capture and formatting
+- Error tracking and feedback
+- Potential use of Jupyter kernel for interactive sessions
 
-2. **New Components**:
-   - Create `NodeContextMenu.tsx` for right-click functionality
-   - Create `KeyboardShortcutsHelp.tsx` for displaying available shortcuts
+## Development Workflow
 
-3. **CSS Updates**:
-   - Style for delete button
-   - Styling for context menu
-   - Visual indicators for selected nodes/edges
+1. Feature definition and planning
+2. Component implementation
+3. Integration with existing systems
+4. UI/UX refinement
+5. Testing across browsers
+6. Documentation update
 
-## UI/UX Considerations
+## Future Directions
 
-- **Visual Feedback**: Clear indication when nodes/edges are selected
-- **Multiple Interaction Paths**: Support different user preferences
-- **Confirmation**: Consider adding confirmation for bulk deletions
-- **Keyboard Shortcuts**: Provide discoverable documentation
-- **Undo Support**: Future enhancement to allow reverting deletions
+- Advanced workflow templates
+- Shareable workflow library
+- OpenAI API integration for testing
+- Versioning and branching for workflows
+- Collaborative editing features
 
-## Technical Approach
-
-- Use ReactFlow's built-in mechanisms for node/edge changes
-- Leverage the `applyNodeChanges` and `applyEdgeChanges` methods
-- Maintain a clean separation between:
-  - Event detection (key press, right-click)
-  - Operation handling (determining what to delete)
-  - State updates (applying the changes)
-- Ensure all interaction methods share the same core logic
-
-## Testing Strategy
-
-- Manual testing of all deletion paths
-- Edge cases to test:
-  - Deleting nodes with connected edges
-  - Deleting the last node
-  - Keyboard shortcuts with different node selections
-  - Right-click behavior on overlapping elements
-
-## Implementation Sequence
-
-1. Set up basic keyboard deletion
-2. Implement context menu component
-3. Add right-click handlers
-4. Create delete button UI
-5. Add keyboard shortcuts help
-6. Refine styles and interactions
-7. Test and debug all paths
-
-## Conclusion
-
-This deletion feature enhances the usability of the OpenAI Agents Workflow Designer by providing intuitive ways to remove nodes and connections. The implementation leverages ReactFlow's built-in capabilities while adding custom UI elements for improved user experience.
-
-The feature is designed to be consistent with existing interaction patterns in the application and follows best practices for visual feedback and multiple interaction paths.
+Last updated: April 10, 2025

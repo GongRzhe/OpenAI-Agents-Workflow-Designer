@@ -13,9 +13,17 @@ A visual drag-and-drop interface for designing and orchestrating OpenAI agent wo
   - Function Tool nodes (custom Python functions)
 - **Connection System**: Visually connect components to define relationships and data flow
 - **Node Customization**: Resize and configure nodes with intuitive controls
-- **Node Management**: Delete nodes and connections via keyboard shortcuts or context menu
+- **Node Management**: Delete nodes and connections via keyboard shortcuts, context menu or navbar button
 - **Code Generation**: Automatically generate Python code from your visual workflow
+- **Project Management**: Import and export workflows to save and share your designs
 - **React Flow Integration**: Built on top of React Flow for smooth, interactive node-based interfaces
+
+## Recent UI Enhancements
+
+- **Improved Connection Points**: Enhanced node connection points with clearer visual indicators and color-coding
+- **Better Scrollbars and Dropdowns**: Redesigned with sci-fi theme styling for improved usability
+- **Optimized Delete Functionality**: Delete button moved to the navbar for easier access
+- **Connection Type Indicators**: Visual indicators showing different types of connections (Agent, Runner, Tool)
 
 ## Installation
 
@@ -56,8 +64,9 @@ A visual drag-and-drop interface for designing and orchestrating OpenAI agent wo
 2. **Configure Nodes**: Click on nodes to edit their properties in the node panel
 3. **Resize Nodes**: Select a node and use the resize handles to adjust its size
 4. **Create Connections**: Connect nodes by dragging from one node's handle to another
-5. **Delete Components**: Select nodes or edges and press Delete key, or use the context menu
+5. **Delete Components**: Select nodes or edges and press Delete key, use the context menu, or click the Delete Selected button in the navbar
 6. **Generate Code**: Click the "Generate Code" button in the top bar to create Python code for your workflow
+7. **Save/Load**: Use the Import/Export buttons to save and load your workflows
 
 ### Component Types
 
@@ -98,15 +107,20 @@ openai-agents-designer/
 │   ├── components/     # React components
 │   │   ├── common/     # Shared UI components
 │   │   │   ├── CodeModal.tsx           # Code display modal
+│   │   │   ├── ExportModal.tsx         # Export workflow modal
+│   │   │   ├── ImportModal.tsx         # Import workflow modal
 │   │   │   ├── KeyboardShortcutsHelp.tsx # Keyboard shortcuts help
 │   │   │   ├── NodeContextMenu.tsx     # Right-click context menu
-│   │   │   └── ResizeHandle.tsx        # Custom resize handles
+│   │   │   ├── ResizeHandle.tsx        # Custom resize handles
+│   │   │   └── SciFiBackground.tsx     # Background effects
 │   │   ├── layout/     # Layout components (Navbar, Sidebar)
 │   │   └── nodes/      # Custom node implementations
 │   ├── context/        # React context providers
 │   │   └── NodeDataContext.tsx  # State management for nodes
+│   ├── styles/         # CSS styling including SciFiTheme.css
 │   ├── utils/          # Utility functions
-│   │   └── codeGenerator.ts     # Python code generation logic
+│   │   ├── codeGenerator.ts     # Python code generation logic
+│   │   └── projectIO.ts         # Import/export functionality
 │   ├── App.tsx         # Main application component
 │   └── main.tsx        # Application entry point
 ├── index.html          # HTML entry point
@@ -134,9 +148,10 @@ openai-agents-designer/
 ### Recently Added Features
 
 1. **Node Resizing**: Resize nodes using corner handles
-2. **Node Deletion**: Delete nodes and edges with keyboard shortcuts
-3. **Context Menu**: Right-click on nodes and edges for quick actions
-4. **Keyboard Shortcuts**: Added keyboard shortcut support and help panel
+2. **Node Deletion**: Delete nodes and edges with keyboard shortcuts, context menu or navbar button
+3. **Import/Export**: Save and load your workflow designs
+4. **Enhanced UI**: Improved connection points, scrollbars, and dropdowns with sci-fi styling
+5. **Connection Type Indicators**: Visual distinction between different connection types
 
 ## Troubleshooting
 
@@ -154,11 +169,10 @@ This application works best in modern browsers (Chrome, Firefox, Edge, Safari). 
 ## Planned Features
 
 - Copy/paste functionality for nodes
-- Save/load workflows
 - Undo/redo system
 - Workflow validation
-- Import/export to JSON
 - Template workflows
+- OpenAI API integration for live testing
 
 ## License
 
