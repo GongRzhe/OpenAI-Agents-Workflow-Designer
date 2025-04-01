@@ -1,4 +1,4 @@
-// src/utils/codeGenerator.ts
+// Updated codeGenerator.ts to support Python code nodes
 import { Node, Edge } from 'reactflow';
 
 // Helper function to sanitize names for Python variables/functions
@@ -36,6 +36,22 @@ from pydantic import BaseModel # Assuming pydantic might be needed for output_ty
   const functionToolNodes = nodes.filter((node) => node.type === 'functionTool');
   const agentNodes = nodes.filter((node) => node.type === 'agent');
   const runnerNodes = nodes.filter((node) => node.type === 'runner');
+  const pythonCodeNodes = nodes.filter((node) => node.type === 'pythonCode');
+
+  // --- Python Code Nodes ---
+  if (pythonCodeNodes.length > 0) {
+    code += "\n# --- Custom Python Code ---\n";
+    pythonCodeNodes.forEach((node) => {
+      const nodeName = sanitizeName(node.data.name || `python_node_${node.id}`);
+      const nodeCode = node.data.code || '# Empty code block';
+
+      code += `\n# ${node.data.name || 'Unnamed Python Node'}\n`;
+      
+      // Indent the code properly
+      const indentedCode = nodeCode.split('\n').map((line: string) => `    ${line}`).join('\n');
+      code += indentedCode + '\n';
+    });
+  }
 
   // --- Function Tool Definitions ---
   if (functionToolNodes.length > 0) {
@@ -157,4 +173,30 @@ ${implementation.split('\n').map((line: string) => `    ${line}`).join('\n')}
 
 
   return code;
+};
+
+// Add helper function to extract required dependencies from nodes
+export const extractDependenciesFromNodes = (nodes: Node[]): string[] => {
+  const dependencies = new Set<string>(['openai-agents']);
+  
+  // Extract from Python code nodes
+  const pythonCodeNodes = nodes.filter((node) => node.type === 'pythonCode');
+  
+  pythonCodeNodes.forEach(node => {
+    const code = node.data.code || '';
+    
+    // Simple regex to find imports
+    const importRegex = /^(?:from|import)\s+([a-zA-Z0-9_]+)/gm;
+    let match;
+    
+    while ((match = importRegex.exec(code)) !== null) {
+      const packageName = match[1];
+      // Skip standard library modules and openai-agents which is already included
+      if (!['os', 'sys', 'math', 'json', 'time', 'datetime', 'random', 'asyncio', 'agents'].includes(packageName)) {
+        dependencies.add(packageName);
+      }
+    }
+  });
+  
+  return Array.from(dependencies);
 };

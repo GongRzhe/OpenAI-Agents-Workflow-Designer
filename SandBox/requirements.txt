@@ -1,0 +1,19 @@
+# Core dependencies
+openai>=1.66.5
+pydantic>=2.10.3
+fastapi>=0.105.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+
+# OpenAI Agents framework
+openai-agents>=0.0.2
+
+# Utility dependencies
+griffe>=1.5.6
+typing-extensions>=4.12.2
+requests>=2.0.3
+types-requests>=2.0.3
+python-dotenv>=1.0.1
+
+# Security for code execution
+psutil>=5.9.0

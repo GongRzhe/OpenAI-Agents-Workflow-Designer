@@ -13,6 +13,7 @@ import Box from '@mui/material/Box';
 import AccountTreeIcon from '@mui/icons-material/AccountTree'; // Placeholder for Agent
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'; // Placeholder for Runner
 import BuildIcon from '@mui/icons-material/Build'; // Placeholder for Function Tool
+import CodeIcon from '@mui/icons-material/Code'; // New import for Python Code
 
 const drawerWidth = 240;
 
@@ -150,6 +151,41 @@ const Sidebar: React.FC = () => {
               </ListItemIcon>
               <ListItemText
                 primary="Function Tool"
+                primaryTypographyProps={{
+                  sx: {
+                    fontFamily: '"Orbitron", sans-serif',
+                    color: '#f6f8ff'
+                  }
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+
+          {/* Draggable Python Code Node - NEW */}
+          <ListItem disablePadding>
+            <ListItemButton
+              onDragStart={(event) => onDragStart(event, 'pythonCode')}
+              draggable
+              sx={{
+                cursor: 'grab',
+                mb: 1,
+                borderRadius: 1,
+                background: 'rgba(76, 175, 80, 0.1)',
+                border: '1px solid rgba(76, 175, 80, 0.3)',
+                boxShadow: '0 2px 8px rgba(76, 175, 80, 0.2)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  background: 'rgba(76, 175, 80, 0.2)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                }
+              }}
+            >
+              <ListItemIcon>
+                <CodeIcon sx={{ color: '#4CAF50' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Python Code"
                 primaryTypographyProps={{
                   sx: {
                     fontFamily: '"Orbitron", sans-serif',

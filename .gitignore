@@ -28,3 +28,4 @@ dist-ssr
 .env
 .venv/
 venv/
+__pycache__/

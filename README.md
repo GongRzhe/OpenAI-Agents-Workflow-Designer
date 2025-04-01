@@ -2,7 +2,17 @@
 
 A visual drag-and-drop interface for designing and orchestrating OpenAI agent workflows. This tool allows you to visually create complex AI agent systems by connecting different components and automatically generates the corresponding Python code.
 
-![OpenAI Agents Workflow Designer Interface](public/screenshot.png)
+
+Thanks to AI master [AI超元域](https://www.youtube.com/watch?v=KQULGx6wjco) and [Cole Medin](https://www.youtube.com/watch?v=SS5DYx6mPw8)
+
+
+
+
+
+![OpenAI Agents Workflow Designer Interface](public/main.png)
+![OpenAI Agents Workflow Designer Interface](public/CodeGen.png)
+![OpenAI Agents Workflow Designer Interface](public/import.png)
+![OpenAI Agents Workflow Designer Interface](public/export.png)
 
 ## Features
 
@@ -36,8 +46,8 @@ A visual drag-and-drop interface for designing and orchestrating OpenAI agent wo
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/openai-agents-designer.git
-   cd openai-agents-designer
+   git clone https://github.com/GongRzhe/Openai-Agents-Designer.git
+   cd Openai-Agents-Designer
    ```
 
 2. Install dependencies:
@@ -100,7 +110,7 @@ Custom Python functions that can be used by agents.
 ## Project Structure
 
 ```
-openai-agents-designer/
+Openai-Agents-Designer/
 ├── public/             # Static assets
 ├── src/
 │   ├── assets/         # Images, fonts, etc.

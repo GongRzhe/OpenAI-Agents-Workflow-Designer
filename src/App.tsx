@@ -48,6 +48,10 @@ import ImportModal from './components/common/ImportModal';
 import SciFiBackground from './components/common/SciFiBackground';
 import './styles/SciFiTheme.css';
 
+
+import PythonCodeNode from './components/nodes/PythonCodeNode';
+import { PythonExecutionProvider } from './context/PythonExecutionContext';
+
 // Define initial elements if needed, or start empty
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
@@ -57,8 +61,8 @@ const nodeTypes = {
   agent: AgentNode,
   runner: RunnerNode,
   functionTool: FunctionToolNode,
+  pythonCode: PythonCodeNode, // Add this line
 };
-
 let id = 0;
 const getId = () => `dndnode_${id++}`;
 
@@ -360,80 +364,82 @@ function App() {
         <ReactFlowProvider>
           {/* Wrap ReactFlow with NodeDataProvider */}
           <NodeDataProvider>
-            <div
-              style={{
-                height: 'calc(100% - 64px)',
-                width: '100%',
-                position: 'relative',
-                border: '2px solid rgba(12, 235, 235, 0.3)',
-                borderRadius: '8px',
-                boxShadow: 'inset 0 0 20px rgba(12, 235, 235, 0.2), 0 0 15px rgba(12, 235, 235, 0.1)'
-              }}
-              ref={reactFlowWrapper}
-              onDrop={onDrop} // Move handler here
-              onDragOver={onDragOver} // Move handler here
-            > {/* Adjust height considering Toolbar */}
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                onInit={setReactFlowInstance}
-                nodeTypes={nodeTypes}
-                fitView
-                attributionPosition="bottom-left"
-                noDragClassName="nodrag"
-                selectNodesOnDrag={false}
-                elementsSelectable={true}
-                nodesDraggable={true}
-                zoomOnScroll={true}
-                panOnScroll={false}
-                panOnDrag={[1, 2]}
-                onNodeContextMenu={onNodeContextMenu}
-                onEdgeContextMenu={onEdgeContextMenu}
-                onPaneClick={onPaneClick}
-              >
-                <div className="connection-help">
-                  <div className="tooltip-wrapper">
-                    <div className="tooltip-item">
-                      <div className="connector agent"></div>
-                      <span>Agent Connection</span>
-                    </div>
-                    <div className="tooltip-item">
-                      <div className="connector runner"></div>
-                      <span>Runner Connection</span>
-                    </div>
-                    <div className="tooltip-item">
-                      <div className="connector tool"></div>
-                      <span>Tool Connection</span>
+            <PythonExecutionProvider>
+              <div
+                style={{
+                  height: 'calc(100% - 64px)',
+                  width: '100%',
+                  position: 'relative',
+                  border: '2px solid rgba(12, 235, 235, 0.3)',
+                  borderRadius: '8px',
+                  boxShadow: 'inset 0 0 20px rgba(12, 235, 235, 0.2), 0 0 15px rgba(12, 235, 235, 0.1)'
+                }}
+                ref={reactFlowWrapper}
+                onDrop={onDrop} // Move handler here
+                onDragOver={onDragOver} // Move handler here
+              > {/* Adjust height considering Toolbar */}
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onConnect={onConnect}
+                  onInit={setReactFlowInstance}
+                  nodeTypes={nodeTypes}
+                  fitView
+                  attributionPosition="bottom-left"
+                  noDragClassName="nodrag"
+                  selectNodesOnDrag={false}
+                  elementsSelectable={true}
+                  nodesDraggable={true}
+                  zoomOnScroll={true}
+                  panOnScroll={false}
+                  panOnDrag={[1, 2]}
+                  onNodeContextMenu={onNodeContextMenu}
+                  onEdgeContextMenu={onEdgeContextMenu}
+                  onPaneClick={onPaneClick}
+                >
+                  <div className="connection-help">
+                    <div className="tooltip-wrapper">
+                      <div className="tooltip-item">
+                        <div className="connector agent"></div>
+                        <span>Agent Connection</span>
+                      </div>
+                      <div className="tooltip-item">
+                        <div className="connector runner"></div>
+                        <span>Runner Connection</span>
+                      </div>
+                      <div className="tooltip-item">
+                        <div className="connector tool"></div>
+                        <span>Tool Connection</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <Controls
-                  showZoom={true}
-                  showFitView={true}
-                  showInteractive={true}
-                  style={{
-                    bottom: 20,
-                    left: 20,
-                    boxShadow: '0 0 10px rgba(12, 235, 235, 0.3)',
-                    background: 'rgba(25, 32, 56, 0.8)',
-                  }}
-                />
-                <Background />
-              </ReactFlow>
-              <SciFiBackground opacity={0.25} />
+                  <Controls
+                    showZoom={true}
+                    showFitView={true}
+                    showInteractive={true}
+                    style={{
+                      bottom: 20,
+                      left: 20,
+                      boxShadow: '0 0 10px rgba(12, 235, 235, 0.3)',
+                      background: 'rgba(25, 32, 56, 0.8)',
+                    }}
+                  />
+                  <Background />
+                </ReactFlow>
+                <SciFiBackground opacity={0.25} />
 
-              {contextMenu && (
-                <NodeContextMenu
-                  x={contextMenu.x}
-                  y={contextMenu.y}
-                  onDelete={handleContextMenuDelete}
-                  onClose={() => setContextMenu(null)}
-                />
-              )}
-            </div>
+                {contextMenu && (
+                  <NodeContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onDelete={handleContextMenuDelete}
+                    onClose={() => setContextMenu(null)}
+                  />
+                )}
+              </div>
+            </PythonExecutionProvider>
           </NodeDataProvider>
         </ReactFlowProvider>
       </Box>
