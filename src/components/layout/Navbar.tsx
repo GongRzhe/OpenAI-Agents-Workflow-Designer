@@ -7,14 +7,21 @@ import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 interface NavbarProps {
   onGenerateCode: () => void;
   onExportProject: () => void;
   onImportProject: () => void;
+  onDeleteElements: () => void; // Add this prop
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onGenerateCode, onExportProject, onImportProject }) => {
+const Navbar: React.FC<NavbarProps> = ({ 
+  onGenerateCode, 
+  onExportProject, 
+  onImportProject, 
+  onDeleteElements // Add this prop
+}) => {
   return (
     <AppBar position="fixed" sx={{
       zIndex: (theme) => theme.zIndex.drawer + 1,
@@ -37,6 +44,26 @@ const Navbar: React.FC<NavbarProps> = ({ onGenerateCode, onExportProject, onImpo
           OpenAI Agents Workflow Designer
         </Typography>
         <Box>
+          {/* Add Delete Button */}
+          <Button
+            variant="contained"
+            sx={{
+              mr: 2,
+              background: 'linear-gradient(135deg, #e74c3c, #c0392b)',
+              color: '#f6f8ff',
+              border: '1px solid rgba(255,255,255,0.2)',
+              boxShadow: '0 4px 10px rgba(231, 76, 60, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #c0392b, #e74c3c)',
+                boxShadow: '0 6px 15px rgba(231, 76, 60, 0.5)',
+                transform: 'translateY(-2px)'
+              }
+            }}
+            onClick={onDeleteElements}
+            startIcon={<DeleteIcon />}
+          >
+            Delete Selected
+          </Button>
           <Button
             variant="contained"
             sx={{
