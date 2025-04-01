@@ -1,104 +1,151 @@
-// src/components/common/ResizeHandle.tsx
-import React, { useState, useRef, useEffect } from 'react';
-import { Box } from '@mui/material';
+// src/components/nodes/AgentNode.tsx - Enhanced with ReactFlow's official resizer
+import React, { memo, useCallback } from 'react';
+import { Handle, Position, NodeProps, NodeResizer, NodeResizeControl } from 'reactflow';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
+import AccountTreeIcon from '@mui/icons-material/AccountTree'; // Agent Icon
+import { useNodeData } from '../../context/NodeDataContext'; // Import the hook
 
-interface ResizeHandleProps {
-  onResize: (width: number, height: number) => void;
-  minWidth?: number;
-  minHeight?: number;
+// Define the data structure expected by this node
+interface AgentNodeData {
+  name?: string;
+  instructions?: string;
+  handoff_description?: string;
+  dimensions?: { width: number; height: number };
+  // Add other properties as needed
 }
 
-const ResizeHandle: React.FC<ResizeHandleProps> = ({ 
-  onResize, 
-  minWidth = 200, 
-  minHeight = 150 
-}) => {
-  const [isResizing, setIsResizing] = useState(false);
-  const initialPositionRef = useRef({ x: 0, y: 0 });
-  const initialSizeRef = useRef({ width: 0, height: 0 });
-  const parentRef = useRef<HTMLElement | null>(null);
-  
-  // When mouse down, start resizing
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    
-    // Get parent node element (Card component)
-    const parent = (e.currentTarget as HTMLElement).closest('.resizable-node') as HTMLElement;
-    if (!parent) return;
-    
-    parentRef.current = parent;
-    initialPositionRef.current = { x: e.clientX, y: e.clientY };
-    initialSizeRef.current = { 
-      width: parent.offsetWidth, 
-      height: parent.offsetHeight 
-    };
-    
-    setIsResizing(true);
-    
-    // Add event listeners for mouse move and up
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
-  
-  // Resize as mouse moves
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isResizing || !parentRef.current) return;
-    
-    const deltaX = e.clientX - initialPositionRef.current.x;
-    const deltaY = e.clientY - initialPositionRef.current.y;
-    
-    const newWidth = Math.max(initialSizeRef.current.width + deltaX, minWidth);
-    const newHeight = Math.max(initialSizeRef.current.height + deltaY, minHeight);
-    
-    // Call the onResize callback
-    onResize(newWidth, newHeight);
-  };
-  
-  // Stop resizing when mouse up
-  const handleMouseUp = () => {
-    setIsResizing(false);
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-  };
+const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable, selected }) => {
+  const { updateNodeData } = useNodeData();
 
-  // Clean up event listeners if component unmounts during resize
-  useEffect(() => {
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
+  // Use useCallback for performance, though likely minor here
+  const handleInputChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const { name, value } = event.target;
+      updateNodeData(id, { [name]: value });
+    },
+    [id, updateNodeData]
+  );
+
+  const stopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
   }, []);
-  
+
   return (
-    <Box
-      className="nodrag resize-handle"
-      sx={{
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        width: 15,
-        height: 15,
-        cursor: 'nwse-resize',
-        background: 'transparent',
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          right: 3,
-          bottom: 3,
-          width: 8,
-          height: 8,
-          borderRight: '2px solid rgba(0,0,0,0.5)',
-          borderBottom: '2px solid rgba(0,0,0,0.5)',
-          borderRadius: '0 0 2px 0',
-        },
-        '&:hover::after': {
-          borderColor: '#3498db',
-        }
-      }}
-      onMouseDown={handleMouseDown}
-    />
+    <>
+      {/* Add the official NodeResizer (only visible when selected) */}
+      <NodeResizer
+        minWidth={200}
+        minHeight={150}
+        isVisible={selected}
+        lineClassName="node-resize-line"
+        handleClassName="node-resize-handle"
+        onResize={(event, { width, height }) => {
+          console.log(`Node resized to width=${width}, height=${height}`);
+          // You can call your resizeNode function here if needed
+          // resizeNode(id, width, height);
+        }}
+      />
+
+      <Card
+        sx={{
+          borderTop: '4px solid #3498db', // Blue top border
+          borderRadius: '8px',
+          minWidth: 200,
+          backgroundColor: selected ? '#e3f2fd' : 'white', // Highlight when selected
+          boxShadow: selected ? '0 0 10px rgba(52, 152, 219, 0.5)' : 1,
+        }}
+      >
+        {/* Input Handle (Top - for Runner or other Agents) */}
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="a"
+          style={{ background: '#555' }}
+          isConnectable={isConnectable}
+        />
+        {/* Output Handle (Bottom - for Runner or Handoffs) */}
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="b"
+          style={{ background: '#555' }}
+          isConnectable={isConnectable}
+        />
+        {/* Output Handle (Right - for Tools) */}
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="c" // Different ID for tool connections
+          style={{ top: '70%', background: '#f39c12' }} // Position lower, different color
+          isConnectable={isConnectable}
+        />
+        {/* Input Handle (Left - for Tools) */}
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="d" // Different ID for tool connections
+          style={{ top: '70%', background: '#f39c12' }} // Position lower, different color
+          isConnectable={isConnectable}
+        />
+
+        <CardContent sx={{ padding: '10px 16px !important' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <AccountTreeIcon sx={{ mr: 1, color: '#3498db' }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+              Agent
+            </Typography>
+          </Box>
+          <TextField
+            label="Name"
+            variant="outlined"
+            size="small"
+            fullWidth
+            name="name" // Add name attribute for handler
+            value={data.name || ''} // Use value instead of defaultValue for controlled component
+            onChange={handleInputChange}
+            onMouseDown={stopPropagation}
+            onClick={stopPropagation}
+            className="nodrag" // Add this class
+            InputProps={{ className: "nodrag" }}
+            sx={{ mb: 1 }}
+          />
+          <TextField
+            label="Instructions"
+            variant="outlined"
+            size="small"
+            fullWidth
+            multiline
+            rows={3}
+            name="instructions" // Add name attribute
+            value={data.instructions || ''} // Use value
+            onChange={handleInputChange}
+            onMouseDown={stopPropagation}
+            onClick={stopPropagation}
+            className="nodrag" // Add this class
+            InputProps={{ className: "nodrag" }}
+            sx={{ mb: 1 }}
+          />
+          <TextField
+            label="Handoff Description (Optional)"
+            variant="outlined"
+            size="small"
+            fullWidth
+            name="handoff_description" // Add name attribute
+            value={data.handoff_description || ''} // Use value
+            onMouseDown={stopPropagation}
+            onClick={stopPropagation}
+            className="nodrag" // Add this class
+            InputProps={{ className: "nodrag" }}
+            onChange={handleInputChange}
+          />
+        </CardContent>
+      </Card>
+    </>
   );
 };
 
-export default ResizeHandle;
+export default memo(AgentNode);

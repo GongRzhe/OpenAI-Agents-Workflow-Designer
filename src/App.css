@@ -41,3 +41,147 @@
 .read-the-docs {
   color: #888;
 }
+
+/* For preventing drag on interactive elements */
+.nodrag {
+  cursor: auto !important;
+  pointer-events: auto !important;
+}
+
+.nodrag:hover {
+  cursor: text !important;
+}
+
+.nodrag select:hover {
+  cursor: pointer !important;
+}
+
+/* For making nodes resizable */
+.resizable-node {
+  transition: width 0.1s, height 0.1s;
+  overflow: visible !important; /* Change from hidden to visible */
+  position: relative !important;
+}
+
+.resize-handle {
+  position: absolute !important;
+  bottom: 2px !important;
+  right: 2px !important;
+  width: 20px !important;
+  height: 20px !important;
+  z-index: 1000 !important;
+  cursor: nwse-resize !important;
+  background-color: transparent !important;
+  pointer-events: all !important;
+  touch-action: none !important;
+}
+
+.resize-handle::after {
+  content: "" !important;
+  position: absolute !important;
+  right: 3px !important;
+  bottom: 3px !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-right: 3px solid rgba(0,0,0,0.6) !important;
+  border-bottom: 3px solid rgba(0,0,0,0.6) !important;
+  border-radius: 0 0 2px 0 !important;
+  pointer-events: none !important;
+}
+
+.resize-handle:hover::after {
+  border-color: #3498db !important;
+  border-width: 3px !important;
+}
+
+/* Apply cursor styles when resizing is active */
+body.resizing,
+body.resizing * {
+  cursor: nwse-resize !important;
+  user-select: none !important;
+}
+
+/* Card content styling to ensure proper positioning */
+.MuiCardContent-root {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Styling for ReactFlow's NodeResizer component */
+.node-resize-line {
+  border: 1px dashed #3498db;
+  border-radius: 4px;
+}
+
+.node-resize-handle {
+  width: 10px !important;
+  height: 10px !important;
+  background-color: #3498db !important;
+  border: 1px solid white !important;
+}
+
+/* Ensure the handles are above other elements and can be clicked */
+.react-flow__resize-control {
+  z-index: 10 !important;
+  pointer-events: all !important;
+}
+
+/* Add custom styling for the corner handles for better visibility */
+.react-flow__resize-control.handle-bottom.handle-right,
+.react-flow__resize-control.handle-bottom.handle-left,
+.react-flow__resize-control.handle-top.handle-right,
+.react-flow__resize-control.handle-top.handle-left {
+  width: 12px !important;
+  height: 12px !important;
+  background-color: #3498db !important;
+}
+
+
+
+/* Delete button styles */
+.delete-button {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.delete-button:hover {
+  background-color: #c0392b;
+}
+
+.delete-button:active {
+  transform: translateY(1px);
+}
+
+/* Context menu styles */
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px #3498db;
+}
+
+.react-flow__edge.selected {
+  stroke: #3498db;
+  stroke-width: 3;
+}
+
+/* Highlight editable areas */
+.react-flow__node:hover {
+  cursor: move;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background-color: #555;
+}
+
+.react-flow__handle:hover {
+  background-color: #3498db;
+}
