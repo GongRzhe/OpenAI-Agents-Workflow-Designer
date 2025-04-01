@@ -89,7 +89,13 @@ const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable
           type="target"
           position={Position.Top}
           id="a"
-          style={{ background: '#555' }}
+          style={{
+            background: '#0cebeb',
+            border: '2px solid #192038',
+            width: '12px',
+            height: '12px'
+          }}
+          className="handle-agent"
           isConnectable={isConnectable}
         />
         {/* Output Handle (Bottom - for Runner or Handoffs) */}
@@ -97,23 +103,44 @@ const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable
           type="source"
           position={Position.Bottom}
           id="b"
-          style={{ background: '#555' }}
+          style={{
+            background: '#0cebeb',
+            border: '2px solid #192038',
+            width: '12px',
+            height: '12px'
+          }}
+          className="handle-agent"
           isConnectable={isConnectable}
+
         />
         {/* Output Handle (Right - for Tools) */}
         <Handle
           type="source"
           position={Position.Right}
-          id="c" // Different ID for tool connections
-          style={{ top: '70%', background: '#f39c12' }} // Position lower, different color
+          id="c"
+          style={{
+            top: '70%',
+            background: '#0cebeb',
+            border: '2px solid #192038',
+            width: '12px',
+            height: '12px'
+          }}
+          className="handle-agent"
           isConnectable={isConnectable}
         />
         {/* Input Handle (Left - for Tools) */}
         <Handle
           type="target"
           position={Position.Left}
-          id="d" // Different ID for tool connections
-          style={{ top: '70%', background: '#f39c12' }} // Position lower, different color
+          id="d"
+          style={{
+            top: '70%',
+            background: '#0cebeb',
+            border: '2px solid #192038',
+            width: '12px',
+            height: '12px'
+          }}
+          className="handle-agent"
           isConnectable={isConnectable}
         />
 

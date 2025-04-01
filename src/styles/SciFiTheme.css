@@ -1,100 +1,106 @@
 :root {
-  --sci-fi-primary: #0cebeb;
-  --sci-fi-secondary: #7303c0;
-  --sci-fi-accent: #20e3b2;
-  --sci-fi-dark: #192038;
-  --sci-fi-light: #f6f8ff;
-  --sci-fi-glow: 0 0 10px rgba(12, 235, 235, 0.7);
-  --sci-fi-edge-glow: 0 0 5px rgba(32, 227, 178, 0.4);
-  --sci-fi-font: 'Orbitron', sans-serif;
+    --sci-fi-primary: #0cebeb;
+    --sci-fi-secondary: #7303c0;
+    --sci-fi-accent: #20e3b2;
+    --sci-fi-dark: #192038;
+    --sci-fi-light: #f6f8ff;
+    --sci-fi-glow: 0 0 10px rgba(12, 235, 235, 0.7);
+    --sci-fi-edge-glow: 0 0 5px rgba(32, 227, 178, 0.4);
+    --sci-fi-font: 'Orbitron', sans-serif;
 }
 
 /* ReactFlow canvas styles */
 .react-flow__pane {
-  background-color: rgba(25, 32, 56, 0.4);
+    background-color: rgba(25, 32, 56, 0.4);
 }
 
 /* Node styling */
 .react-flow__node {
-  transition: all 0.3s ease;
-  border: 1px solid var(--sci-fi-accent);
-  box-shadow: var(--sci-fi-edge-glow);
+    transition: all 0.3s ease;
+    border: 1px solid var(--sci-fi-accent);
+    box-shadow: var(--sci-fi-edge-glow);
 }
 
 .react-flow__node:hover {
-  box-shadow: var(--sci-fi-glow);
-  transform: translateY(-2px);
+    box-shadow: var(--sci-fi-glow);
+    transform: translateY(-2px);
 }
 
 .react-flow__node.selected {
-  box-shadow: 0 0 0 2px var(--sci-fi-primary), var(--sci-fi-glow);
+    box-shadow: 0 0 0 2px var(--sci-fi-primary), var(--sci-fi-glow);
 }
 
 /* Edge styling */
 .react-flow__edge path {
-  stroke: var(--sci-fi-primary);
-  stroke-width: 2;
-  filter: drop-shadow(var(--sci-fi-edge-glow));
+    stroke: var(--sci-fi-primary);
+    stroke-width: 2;
+    filter: drop-shadow(var(--sci-fi-edge-glow));
 }
 
 .react-flow__edge.selected path {
-  stroke: var(--sci-fi-accent);
-  stroke-width: 3;
-  filter: drop-shadow(var(--sci-fi-glow));
+    stroke: var(--sci-fi-accent);
+    stroke-width: 3;
+    filter: drop-shadow(var(--sci-fi-glow));
 }
 
 /* Handle styling */
 .react-flow__handle {
-  background-color: var(--sci-fi-primary);
-  border: 2px solid var(--sci-fi-dark);
-  box-shadow: var(--sci-fi-edge-glow);
+    width: 12px; /* Increase size from current 8px */
+    height: 12px;
+    background-color: var(--sci-fi-primary);
+    border: 2px solid var(--sci-fi-dark);
+    box-shadow: 0 0 8px rgba(12, 235, 235, 0.7); /* Stronger glow */
+    z-index: 100; /* Ensure handles stay on top */
 }
-
 .react-flow__handle:hover {
-  background-color: var(--sci-fi-accent);
+    width: 16px; /* Grow on hover */
+    height: 16px;
+    background-color: var(--sci-fi-accent);
+    box-shadow: 0 0 12px rgba(32, 227, 178, 0.8); /* Even stronger glow on hover */
+    transition: all 0.2s ease;
 }
 
 /* Control panel styling */
 .react-flow__controls {
-  background-color: rgba(25, 32, 56, 0.7);
-  border: 1px solid var(--sci-fi-accent);
-  border-radius: 8px;
-  box-shadow: var(--sci-fi-edge-glow);
+    background-color: rgba(25, 32, 56, 0.7);
+    border: 1px solid var(--sci-fi-accent);
+    border-radius: 8px;
+    box-shadow: var(--sci-fi-edge-glow);
 }
 
 .react-flow__controls-button {
-  background-color: var(--sci-fi-dark);
-  color: var(--sci-fi-primary);
-  border: 1px solid var(--sci-fi-primary);
-  transition: all 0.2s ease;
+    background-color: var(--sci-fi-dark);
+    color: var(--sci-fi-primary);
+    border: 1px solid var(--sci-fi-primary);
+    transition: all 0.2s ease;
 }
 
 .react-flow__controls-button:hover {
-  background-color: var(--sci-fi-primary);
-  color: var(--sci-fi-dark);
+    background-color: var(--sci-fi-primary);
+    color: var(--sci-fi-dark);
 }
 
 /* Button enhancements */
 .delete-button {
-  background: linear-gradient(135deg, #ff5858, #f857a6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(5px);
-  transition: all 0.3s ease;
+    background: linear-gradient(135deg, #ff5858, #f857a6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
 }
 
 .delete-button:hover {
-  background: linear-gradient(135deg, #ff5858, #cb356b);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(135deg, #ff5858, #cb356b);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
 }
 
 /* Panel styling */
 .react-flow__panel {
-  background-color: rgba(25, 32, 56, 0.7);
-  border: 1px solid var(--sci-fi-accent);
-  backdrop-filter: blur(5px);
-  border-radius: 8px;
+    background-color: rgba(25, 32, 56, 0.7);
+    border: 1px solid var(--sci-fi-accent);
+    backdrop-filter: blur(5px);
+    border-radius: 8px;
 }
 
 /* Controls styling for better visibility */
@@ -104,26 +110,226 @@
     border-radius: 8px;
     padding: 8px;
     box-shadow: 0 0 10px rgba(12, 235, 235, 0.3);
-  }
-  
-  .react-flow__controls-button {
+}
+
+.react-flow__controls-button {
     background-color: rgba(25, 32, 56, 0.9);
     border: 1px solid rgba(12, 235, 235, 0.5);
     margin-bottom: 8px;
     color: white;
     transition: all 0.2s ease;
-  }
-  
-  .react-flow__controls-button:hover {
+}
+
+.react-flow__controls-button:hover {
     background-color: rgba(12, 235, 235, 0.2);
     color: white;
-  }
-  
-  .react-flow__controls-button svg {
+}
+
+.react-flow__controls-button svg {
     fill: #0cebeb;
     filter: drop-shadow(0 0 2px rgba(12, 235, 235, 0.5));
+}
+
+.react-flow__controls-button:hover svg {
+    fill: white;
+}
+
+.react-flow__node-agent {
+    height: 35%;
+    width: 30%;
+}
+
+.react-flow__node-functionTool {
+    height: 50%;
+    width: 30%;
+}
+
+.react-flow__node-runner {
+    height: 25%;
+    width: 25%;
+}
+
+.react-flow__node .MuiCard-root {
+    height: 100%;
+    overflow: auto;
+}
+
+
+/* Add animations for handles to make them pulse subtly */
+@keyframes handlePulse {
+    0% { box-shadow: 0 0 6px rgba(12, 235, 235, 0.6); }
+    50% { box-shadow: 0 0 12px rgba(12, 235, 235, 0.9); }
+    100% { box-shadow: 0 0 6px rgba(12, 235, 235, 0.6); }
+}
+
+/* Add specific styling for different handle types */
+.handle-runner {
+    background-color: #F44336 !important; /* Runner color */
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.7) !important;
+}
+
+.handle-agent {
+    background-color: #0cebeb !important; /* Agent color */
+    box-shadow: 0 0 8px rgba(12, 235, 235, 0.7) !important;
+}
+
+.handle-tool {
+    background-color: #FF9800 !important; /* Tool color */
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.7) !important;
+}
+
+/* Add animation to handles when node is selected */
+.react-flow__node.selected .react-flow__handle {
+    animation: handlePulse 2s infinite ease-in-out;
+}
+
+/* Connection helper tooltip styles */
+.connection-help {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    background-color: rgba(25, 32, 56, 0.9);
+    border: 1px solid var(--sci-fi-primary);
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 0 15px rgba(12, 235, 235, 0.5);
   }
   
-  .react-flow__controls-button:hover svg {
-    fill: white;
+  .tooltip-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .tooltip-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .connector {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #192038;
+  }
+  
+  .connector.agent {
+    background-color: #0cebeb;
+    box-shadow: 0 0 8px rgba(12, 235, 235, 0.7);
+  }
+  
+  .connector.runner {
+    background-color: #F44336;
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.7);
+  }
+  
+  .connector.tool {
+    background-color: #FF9800;
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.7);
+  }
+  
+  .tooltip-item span {
+    color: #f6f8ff;
+    font-size: 12px;
+    font-family: var(--sci-fi-font);
+  }
+
+
+  /* Custom Scrollbar Styling */
+/* For Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: rgba(25, 32, 56, 0.6);
+    border-radius: 4px;
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #0cebeb, #20e3b2);
+    border-radius: 4px;
+    border: 1px solid rgba(12, 235, 235, 0.2);
+    box-shadow: 0 0 6px rgba(12, 235, 235, 0.5);
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #20e3b2, #0cebeb);
+    box-shadow: 0 0 8px rgba(12, 235, 235, 0.8);
+  }
+  
+  ::-webkit-scrollbar-corner {
+    background: rgba(25, 32, 56, 0.6);
+  }
+  
+  /* For Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #0cebeb rgba(25, 32, 56, 0.6);
+  }
+  
+  /* Dropdown Styling */
+  .MuiSelect-select {
+    border-color: rgba(32, 227, 178, 0.3) !important;
+    transition: all 0.3s ease !important;
+  }
+  
+  .MuiSelect-select:hover {
+    border-color: rgba(12, 235, 235, 0.7) !important;
+    box-shadow: 0 0 8px rgba(12, 235, 235, 0.3) !important;
+  }
+  
+  .MuiSelect-icon {
+    color: #0cebeb !important;
+    filter: drop-shadow(0 0 2px rgba(12, 235, 235, 0.5)) !important;
+  }
+  
+  .MuiMenu-paper, 
+  .MuiPopover-paper {
+    background: rgba(25, 32, 56, 0.95) !important;
+    border: 1px solid rgba(32, 227, 178, 0.4) !important;
+    box-shadow: 0 4px 20px rgba(12, 235, 235, 0.3) !important;
+    backdrop-filter: blur(5px) !important;
+    border-radius: 6px !important;
+    margin-top: 4px !important;
+    overflow: hidden !important;
+  }
+  
+  .MuiMenuItem-root {
+    color: #f6f8ff !important;
+    font-family: 'Orbitron', sans-serif !important;
+    transition: all 0.2s ease !important;
+    padding: 10px 16px !important;
+    border-left: 2px solid transparent !important;
+  }
+  
+  .MuiMenuItem-root:hover {
+    background: rgba(12, 235, 235, 0.1) !important;
+    border-left: 2px solid #0cebeb !important;
+    box-shadow: inset 0 0 8px rgba(12, 235, 235, 0.1) !important;
+  }
+  
+  .MuiMenuItem-root.Mui-selected {
+    background: rgba(12, 235, 235, 0.2) !important;
+    border-left: 2px solid #0cebeb !important;
+    box-shadow: inset 0 0 12px rgba(12, 235, 235, 0.2) !important;
+  }
+  
+  .MuiListItem-button:hover {
+    background-color: rgba(12, 235, 235, 0.1) !important;
+  }
+  
+  /* Add subtle pulsing animation to selected item */
+  @keyframes selectPulse {
+    0% { background-color: rgba(12, 235, 235, 0.15); }
+    50% { background-color: rgba(12, 235, 235, 0.25); }
+    100% { background-color: rgba(12, 235, 235, 0.15); }
+  }
+  
+  .MuiMenuItem-root.Mui-selected {
+    animation: selectPulse 2s infinite ease-in-out !important;
   }

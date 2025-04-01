@@ -393,6 +393,22 @@ function App() {
                 onEdgeContextMenu={onEdgeContextMenu}
                 onPaneClick={onPaneClick}
               >
+                <div className="connection-help">
+                  <div className="tooltip-wrapper">
+                    <div className="tooltip-item">
+                      <div className="connector agent"></div>
+                      <span>Agent Connection</span>
+                    </div>
+                    <div className="tooltip-item">
+                      <div className="connector runner"></div>
+                      <span>Runner Connection</span>
+                    </div>
+                    <div className="tooltip-item">
+                      <div className="connector tool"></div>
+                      <span>Tool Connection</span>
+                    </div>
+                  </div>
+                </div>
                 <Controls
                   showZoom={true}
                   showFitView={true}

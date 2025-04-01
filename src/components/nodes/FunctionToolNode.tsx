@@ -108,9 +108,16 @@ const FunctionToolNode: React.FC<NodeProps<FunctionToolNodeData>> = ({ id, data,
         {/* Output Handle (Connects *to* Agent's left handle 'd') */}
         <Handle
           type="source"
-          position={Position.Left} // Connect from left side of tool to right side of agent
+          position={Position.Left}
           id="a"
-          style={{ top: '70%', background: '#555' }}
+          style={{
+            top: '70%',
+            background: '#FF9800',
+            border: '2px solid #192038',
+            width: '12px',
+            height: '12px'
+          }}
+          className="handle-tool"
           isConnectable={isConnectable}
         />
 
