@@ -45,6 +45,9 @@ import { exportProject, importProject, ProjectData } from './utils/projectIO';
 import ExportModal from './components/common/ExportModal';
 import ImportModal from './components/common/ImportModal';
 
+import SciFiBackground from './components/common/SciFiBackground';
+import './styles/SciFiTheme.css';
+
 // Define initial elements if needed, or start empty
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
@@ -333,7 +336,14 @@ function App() {
 
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', width: '100vw', bgcolor: 'lightblue' }}>
+    <Box sx={{
+      display: 'flex',
+      height: '100vh',
+      width: '100vw',
+      bgcolor: 'rgba(25, 32, 56, 0.7)', // Dark sci-fi background color
+      color: '#f6f8ff',
+      fontFamily: '"Orbitron", sans-serif'
+    }}>
       <CssBaseline />
       <Navbar
         onGenerateCode={handleGenerateCode}
@@ -350,7 +360,14 @@ function App() {
           {/* Wrap ReactFlow with NodeDataProvider */}
           <NodeDataProvider>
             <div
-              style={{ height: 'calc(100% - 64px)', width: '100%' /* Ensure full width */ }}
+              style={{
+                height: 'calc(100% - 64px)',
+                width: '100%',
+                position: 'relative',
+                border: '2px solid rgba(12, 235, 235, 0.3)',
+                borderRadius: '8px',
+                boxShadow: 'inset 0 0 20px rgba(12, 235, 235, 0.2), 0 0 15px rgba(12, 235, 235, 0.1)'
+              }}
               ref={reactFlowWrapper}
               onDrop={onDrop} // Move handler here
               onDragOver={onDragOver} // Move handler here
@@ -403,7 +420,7 @@ function App() {
                   </button>
                 </Panel>
               </ReactFlow>
-
+              <SciFiBackground opacity={0.25} />
 
               {contextMenu && (
                 <NodeContextMenu

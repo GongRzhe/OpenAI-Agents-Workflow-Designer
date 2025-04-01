@@ -46,7 +46,7 @@ const RunnerNode: React.FC<NodeProps<RunnerNodeData>> = ({ id, data, isConnectab
   return (
     <>
       {/* Add the official NodeResizer (only visible when selected) */}
-      <NodeResizer 
+      <NodeResizer
         minWidth={200}
         minHeight={150}
         isVisible={selected}
@@ -57,18 +57,50 @@ const RunnerNode: React.FC<NodeProps<RunnerNodeData>> = ({ id, data, isConnectab
           resizeNode(id, width, height);
         }}
       />
-    
+
       <Card
         sx={{
-          borderTop: '4px solid #e74c3c', // Red top border
-          borderRadius: '8px',
           minWidth: 200,
-          backgroundColor: selected ? '#fee' : 'white', // Highlight when selected
-          boxShadow: selected ? '0 0 10px rgba(231, 76, 60, 0.5)' : 1,
-          ...(data.dimensions && {
-            width: `${data.dimensions.width}px`,
-            height: `${data.dimensions.height}px`,
-          }),
+          background: 'linear-gradient(135deg, rgba(25, 32, 56, 0.8), rgba(40, 15, 25, 0.9))',
+          border: selected ? '1px solid rgba(244, 67, 54, 0.7)' : '1px solid rgba(244, 67, 54, 0.3)',
+          borderRadius: '8px',
+          boxShadow: selected
+            ? '0 0 15px rgba(244, 67, 54, 0.4), inset 0 0 8px rgba(244, 67, 54, 0.2)'
+            : '0 4px 15px rgba(244, 67, 54, 0.2)',
+          backdropFilter: 'blur(5px)',
+          transition: 'all 0.3s',
+          '&:hover': {
+            boxShadow: '0 6px 20px rgba(244, 67, 54, 0.4), inset 0 0 10px rgba(244, 67, 54, 0.1)',
+          },
+          // Additional styling specific to Runner
+          '& .MuiInputBase-root': {
+            color: '#f6f8ff',
+            fontFamily: '"Orbitron", sans-serif',
+          },
+          '& .MuiInputLabel-root': {
+            color: '#F44336',
+          },
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(244, 67, 54, 0.3)',
+          },
+          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(244, 67, 54, 0.7)',
+          },
+          '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#F44336',
+            borderWidth: '2px',
+            boxShadow: '0 0 5px rgba(244, 67, 54, 0.3)',
+          },
+          // Checkbox styling
+          '& .MuiCheckbox-root': {
+            color: 'rgba(244, 67, 54, 0.5)',
+          },
+          '& .MuiCheckbox-root.Mui-checked': {
+            color: '#F44336',
+          },
+          '& .MuiFormControlLabel-label': {
+            color: '#f6f8ff',
+          }
         }}
       >
         {/* Input Handle (Top) */}

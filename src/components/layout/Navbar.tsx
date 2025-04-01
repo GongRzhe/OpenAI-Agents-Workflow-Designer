@@ -16,29 +16,78 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onGenerateCode, onExportProject, onImportProject }) => {
   return (
-    <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+    <AppBar position="fixed" sx={{
+      zIndex: (theme) => theme.zIndex.drawer + 1,
+      background: 'linear-gradient(90deg, rgba(12,27,56,0.9) 0%, rgba(28,45,86,0.9) 100%)',
+      backdropFilter: 'blur(8px)',
+      boxShadow: '0 4px 15px rgba(12, 235, 235, 0.3)'
+    }}>
       <Toolbar>
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+        <Typography
+          variant="h6"
+          noWrap
+          component="div"
+          sx={{
+            flexGrow: 1,
+            fontFamily: '"Orbitron", sans-serif',
+            color: '#0cebeb',
+            textShadow: '0 0 10px rgba(12, 235, 235, 0.5)'
+          }}
+        >
           OpenAI Agents Workflow Designer
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button 
-            variant="contained" 
-            color="primary" 
+        <Box>
+          <Button
+            variant="contained"
+            sx={{
+              mr: 2,
+              background: 'linear-gradient(135deg, #20e3b2, #0cebeb)',
+              color: '#192038',
+              border: '1px solid rgba(255,255,255,0.2)',
+              boxShadow: '0 4px 10px rgba(12, 235, 235, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #0cebeb, #7303c0)',
+                boxShadow: '0 6px 15px rgba(12, 235, 235, 0.5)',
+                transform: 'translateY(-2px)'
+              }
+            }}
             onClick={onImportProject}
-            startIcon={<FileUploadIcon />}
           >
             Import
           </Button>
-          <Button 
-            variant="contained" 
-            color="primary" 
+          <Button
+            variant="contained"
+            sx={{
+              mr: 2,
+              background: 'linear-gradient(135deg, #0cebeb, #7303c0)',
+              color: '#f6f8ff',
+              border: '1px solid rgba(255,255,255,0.2)',
+              boxShadow: '0 4px 10px rgba(12, 235, 235, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #7303c0, #0cebeb)',
+                boxShadow: '0 6px 15px rgba(12, 235, 235, 0.5)',
+                transform: 'translateY(-2px)'
+              }
+            }}
             onClick={onExportProject}
-            startIcon={<FileDownloadIcon />}
           >
             Export
           </Button>
-          <Button variant="contained" color="secondary" onClick={onGenerateCode}>
+          <Button
+            variant="contained"
+            sx={{
+              background: 'linear-gradient(135deg, #7303c0, #ec38bc)',
+              color: '#f6f8ff',
+              border: '1px solid rgba(255,255,255,0.2)',
+              boxShadow: '0 4px 10px rgba(115, 3, 192, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #ec38bc, #7303c0)',
+                boxShadow: '0 6px 15px rgba(115, 3, 192, 0.5)',
+                transform: 'translateY(-2px)'
+              }
+            }}
+            onClick={onGenerateCode}
+          >
             Generate Code
           </Button>
         </Box>

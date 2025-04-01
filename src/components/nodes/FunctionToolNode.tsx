@@ -51,7 +51,7 @@ const FunctionToolNode: React.FC<NodeProps<FunctionToolNodeData>> = ({ id, data,
   return (
     <>
       {/* Add the official NodeResizer (only visible when selected) */}
-      <NodeResizer 
+      <NodeResizer
         minWidth={250}
         minHeight={300}
         isVisible={selected}
@@ -62,18 +62,47 @@ const FunctionToolNode: React.FC<NodeProps<FunctionToolNodeData>> = ({ id, data,
           resizeNode(id, width, height);
         }}
       />
-    
+
       <Card
         sx={{
-          borderTop: '4px solid #f39c12', // Yellow top border
+          minWidth: 200,
+          background: 'linear-gradient(135deg, rgba(25, 32, 56, 0.8), rgba(30, 20, 40, 0.9))',
+          border: selected ? '1px solid rgba(255, 152, 0, 0.7)' : '1px solid rgba(255, 152, 0, 0.3)',
           borderRadius: '8px',
-          minWidth: 250,
-          backgroundColor: selected ? '#fff8e1' : 'white', // Highlight when selected
-          boxShadow: selected ? '0 0 10px rgba(243, 156, 18, 0.5)' : 1,
-          ...(data.dimensions && {
-            width: `${data.dimensions.width}px`,
-            height: `${data.dimensions.height}px`,
-          }),
+          boxShadow: selected
+            ? '0 0 15px rgba(255, 152, 0, 0.4), inset 0 0 8px rgba(255, 152, 0, 0.2)'
+            : '0 4px 15px rgba(255, 152, 0, 0.2)',
+          backdropFilter: 'blur(5px)',
+          transition: 'all 0.3s',
+          '&:hover': {
+            boxShadow: '0 6px 20px rgba(255, 152, 0, 0.4), inset 0 0 10px rgba(255, 152, 0, 0.1)',
+          },
+          // Additional styling specific to Function Tool
+          '& .MuiInputBase-root': {
+            color: '#f6f8ff',
+            fontFamily: '"Orbitron", sans-serif',
+          },
+          '& .MuiInputLabel-root': {
+            color: '#FF9800',
+          },
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 152, 0, 0.3)',
+          },
+          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 152, 0, 0.7)',
+          },
+          '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#FF9800',
+            borderWidth: '2px',
+            boxShadow: '0 0 5px rgba(255, 152, 0, 0.3)',
+          },
+          // Code editor styling
+          '& pre': {
+            background: 'rgba(20, 20, 30, 0.8) !important',
+            borderRadius: '4px',
+            border: '1px solid rgba(255, 152, 0, 0.3) !important',
+            boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.4)',
+          }
         }}
       >
         {/* Output Handle (Connects *to* Agent's left handle 'd') */}

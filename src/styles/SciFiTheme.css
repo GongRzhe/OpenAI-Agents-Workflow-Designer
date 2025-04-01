@@ -1,0 +1,98 @@
+:root {
+  --sci-fi-primary: #0cebeb;
+  --sci-fi-secondary: #7303c0;
+  --sci-fi-accent: #20e3b2;
+  --sci-fi-dark: #192038;
+  --sci-fi-light: #f6f8ff;
+  --sci-fi-glow: 0 0 10px rgba(12, 235, 235, 0.7);
+  --sci-fi-edge-glow: 0 0 5px rgba(32, 227, 178, 0.4);
+  --sci-fi-font: 'Orbitron', sans-serif;
+}
+
+/* ReactFlow canvas styles */
+.react-flow__pane {
+  background-color: rgba(25, 32, 56, 0.4);
+}
+
+/* Node styling */
+.react-flow__node {
+  transition: all 0.3s ease;
+  border: 1px solid var(--sci-fi-accent);
+  box-shadow: var(--sci-fi-edge-glow);
+}
+
+.react-flow__node:hover {
+  box-shadow: var(--sci-fi-glow);
+  transform: translateY(-2px);
+}
+
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px var(--sci-fi-primary), var(--sci-fi-glow);
+}
+
+/* Edge styling */
+.react-flow__edge path {
+  stroke: var(--sci-fi-primary);
+  stroke-width: 2;
+  filter: drop-shadow(var(--sci-fi-edge-glow));
+}
+
+.react-flow__edge.selected path {
+  stroke: var(--sci-fi-accent);
+  stroke-width: 3;
+  filter: drop-shadow(var(--sci-fi-glow));
+}
+
+/* Handle styling */
+.react-flow__handle {
+  background-color: var(--sci-fi-primary);
+  border: 2px solid var(--sci-fi-dark);
+  box-shadow: var(--sci-fi-edge-glow);
+}
+
+.react-flow__handle:hover {
+  background-color: var(--sci-fi-accent);
+}
+
+/* Control panel styling */
+.react-flow__controls {
+  background-color: rgba(25, 32, 56, 0.7);
+  border: 1px solid var(--sci-fi-accent);
+  border-radius: 8px;
+  box-shadow: var(--sci-fi-edge-glow);
+}
+
+.react-flow__controls-button {
+  background-color: var(--sci-fi-dark);
+  color: var(--sci-fi-primary);
+  border: 1px solid var(--sci-fi-primary);
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls-button:hover {
+  background-color: var(--sci-fi-primary);
+  color: var(--sci-fi-dark);
+}
+
+/* Button enhancements */
+.delete-button {
+  background: linear-gradient(135deg, #ff5858, #f857a6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+}
+
+.delete-button:hover {
+  background: linear-gradient(135deg, #ff5858, #cb356b);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* Panel styling */
+.react-flow__panel {
+  background-color: rgba(25, 32, 56, 0.7);
+  border: 1px solid var(--sci-fi-accent);
+  backdrop-filter: blur(5px);
+  border-radius: 8px;
+}

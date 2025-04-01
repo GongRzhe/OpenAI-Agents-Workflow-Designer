@@ -37,7 +37,7 @@ const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable
   return (
     <>
       {/* Add the official NodeResizer (only visible when selected) */}
-      <NodeResizer 
+      <NodeResizer
         minWidth={200}
         minHeight={150}
         isVisible={selected}
@@ -48,18 +48,40 @@ const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable
           resizeNode(id, width, height);
         }}
       />
-      
+
       <Card
         sx={{
-          borderTop: '4px solid #3498db', // Blue top border
-          borderRadius: '8px',
           minWidth: 200,
-          backgroundColor: selected ? '#e3f2fd' : 'white', // Highlight when selected
-          boxShadow: selected ? '0 0 10px rgba(52, 152, 219, 0.5)' : 1,
-          ...(data.dimensions && {
-            width: `${data.dimensions.width}px`,
-            height: `${data.dimensions.height}px`,
-          }),
+          background: 'linear-gradient(135deg, rgba(25, 32, 56, 0.8), rgba(18, 25, 45, 0.9))',
+          border: selected ? '1px solid rgba(12, 235, 235, 0.7)' : '1px solid rgba(32, 227, 178, 0.3)',
+          borderRadius: '8px',
+          boxShadow: selected
+            ? '0 0 15px rgba(12, 235, 235, 0.4), inset 0 0 8px rgba(12, 235, 235, 0.2)'
+            : '0 4px 15px rgba(12, 235, 235, 0.2)',
+          backdropFilter: 'blur(5px)',
+          transition: 'all 0.3s',
+          '&:hover': {
+            boxShadow: '0 6px 20px rgba(12, 235, 235, 0.4), inset 0 0 10px rgba(12, 235, 235, 0.1)',
+          },
+          // Additional styling specific to Agent
+          '& .MuiInputBase-root': {
+            color: '#f6f8ff',
+            fontFamily: '"Orbitron", sans-serif',
+          },
+          '& .MuiInputLabel-root': {
+            color: '#0cebeb',
+          },
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(32, 227, 178, 0.3)',
+          },
+          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(12, 235, 235, 0.7)',
+          },
+          '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#0cebeb',
+            borderWidth: '2px',
+            boxShadow: '0 0 5px rgba(12, 235, 235, 0.3)',
+          },
         }}
       >
         {/* Input Handle (Top - for Runner or other Agents) */}
