@@ -40,6 +40,11 @@ import { NodeDataProvider } from './context/NodeDataContext';
 import { generatePythonCode } from './utils/codeGenerator'; // Import the generator
 import CodeModal from './components/common/CodeModal'; // Import the modal
 
+
+import { exportProject, importProject, ProjectData } from './utils/projectIO';
+import ExportModal from './components/common/ExportModal';
+import ImportModal from './components/common/ImportModal';
+
 // Define initial elements if needed, or start empty
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
@@ -71,6 +76,11 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
   const deleteKeyPressed = useKeyPress(['Delete', 'Backspace']);
+
+
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [projectJson, setProjectJson] = useState('');
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -294,10 +304,42 @@ function App() {
   }, [deleteKeyPressed, onDeleteElements]);
 
 
+
+  const handleExportProject = useCallback(() => {
+    const json = exportProject(nodes, edges, 'My Workflow');
+    setProjectJson(json);
+    setIsExportModalOpen(true);
+  }, [nodes, edges]);
+
+  const handleSaveProject = useCallback((projectName: string, description: string) => {
+    const json = exportProject(nodes, edges, projectName, description);
+    setProjectJson(json);
+  }, [nodes, edges]);
+
+  const handleImportProject = useCallback(() => {
+    setIsImportModalOpen(true);
+  }, []);
+
+  const handleProjectImport = useCallback((jsonData: string) => {
+    try {
+      const projectData = importProject(jsonData);
+      setNodes(projectData.nodes);
+      setEdges(projectData.edges);
+    } catch (error) {
+      console.error('Error importing project:', error);
+      alert('Failed to import project. Invalid format.');
+    }
+  }, [setNodes, setEdges]);
+
+
   return (
     <Box sx={{ display: 'flex', height: '100vh', width: '100vw', bgcolor: 'lightblue' }}>
       <CssBaseline />
-      <Navbar onGenerateCode={handleGenerateCode} />
+      <Navbar
+        onGenerateCode={handleGenerateCode}
+        onExportProject={handleExportProject}
+        onImportProject={handleImportProject}
+      />
       <Sidebar />
       <Box
         component="main"
@@ -379,6 +421,25 @@ function App() {
         open={isModalOpen}
         onClose={handleCloseModal}
         code={generatedCode}
+      />
+
+      <CodeModal
+        open={isModalOpen}
+        onClose={handleCloseModal}
+        code={generatedCode}
+      />
+
+      <ExportModal
+        open={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        projectJson={projectJson}
+        onSave={handleSaveProject}
+      />
+
+      <ImportModal
+        open={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleProjectImport}
       />
     </Box>
   );
