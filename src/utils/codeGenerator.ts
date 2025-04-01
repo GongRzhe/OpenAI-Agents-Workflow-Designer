@@ -27,7 +27,9 @@ export const generatePythonCode = (nodes: Node[], edges: Edge[]): string => {
   let code = `import asyncio
 from agents import Agent, Runner, function_tool
 from pydantic import BaseModel # Assuming pydantic might be needed for output_type
+from dotenv import load_dotenv
 
+load_dotenv()
 # --- Generated Pydantic Models (if any) ---
 # TODO: Add logic to generate Pydantic models based on Agent output_type
 

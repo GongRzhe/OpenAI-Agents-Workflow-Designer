@@ -16,7 +16,7 @@ export interface AsyncExecutionResponse {
 export type ExecutionStatus = 'idle' | 'running' | 'completed' | 'error';
 
 // API Configuration
-const API_BASE_URL = 'http://localhost:8088'; // Update this to match your Python API server
+const API_BASE_URL = 'http://localhost:8888'; // Update this to match your Python API server
 
 // Helper function to handle API errors
 const handleApiError = (error: any, defaultMessage: string): never => {
@@ -29,6 +29,7 @@ const handleApiError = (error: any, defaultMessage: string): never => {
  */
 export const executePythonCode = async (code: string, timeout: number = 30): Promise<ExecutionResult> => {
     try {
+        console.log(code)
         const response = await fetch(`${API_BASE_URL}/execute`, {
             method: 'POST',
             headers: {
@@ -215,11 +216,15 @@ export const installPackage = async (packageName: string): Promise<boolean> => {
  */
 export const checkPythonBridgeStatus = async (): Promise<boolean> => {
     try {
+        // Create a controller for timeout instead of using AbortSignal.timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
         const response = await fetch(`${API_BASE_URL}/status`, {
-            // Set a timeout to prevent hanging
-            signal: AbortSignal.timeout(2000),
+            signal: controller.signal,
         });
-
+        
+        clearTimeout(timeoutId);
         return response.ok;
     } catch (error) {
         console.error('Python bridge is not available:', error);

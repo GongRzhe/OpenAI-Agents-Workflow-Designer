@@ -108,7 +108,13 @@ const RunnerNode: React.FC<NodeProps<RunnerNodeData>> = ({ id, data, isConnectab
           type="target"
           position={Position.Top}
           id="a"
-          style={{ background: '#555' }}
+          style={{
+            background: '#F44336',
+            border: '2px solid #192038',
+            width: '12px',
+            height: '12px'
+          }}
+          className="handle-runner"
           isConnectable={isConnectable}
         />
         {/* Output Handle (Bottom) */}
@@ -116,7 +122,13 @@ const RunnerNode: React.FC<NodeProps<RunnerNodeData>> = ({ id, data, isConnectab
           type="source"
           position={Position.Bottom}
           id="b"
-          style={{ background: '#555' }}
+          style={{
+            background: '#F44336',
+            border: '2px solid #192038',
+            width: '12px',
+            height: '12px'
+          }}
+          className="handle-runner"
           isConnectable={isConnectable}
         />
 

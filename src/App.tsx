@@ -40,7 +40,7 @@ import { NodeDataProvider } from './context/NodeDataContext';
 import { generatePythonCode } from './utils/codeGenerator'; // Import the generator
 import CodeModal from './components/common/CodeModal'; // Import the modal
 
-
+import { NodeProps } from 'reactflow';
 import { exportProject, importProject, ProjectData } from './utils/projectIO';
 import ExportModal from './components/common/ExportModal';
 import ImportModal from './components/common/ImportModal';
@@ -49,9 +49,9 @@ import SciFiBackground from './components/common/SciFiBackground';
 import './styles/SciFiTheme.css';
 
 
-import PythonCodeNode from './components/nodes/PythonCodeNode';
+import PythonCodeNode, { PythonCodeNodeData } from './components/nodes/PythonCodeNode';
 import { PythonExecutionProvider } from './context/PythonExecutionContext';
-
+import ErrorBoundary from './components/common/ErrorBoundary';
 // Define initial elements if needed, or start empty
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
@@ -61,7 +61,11 @@ const nodeTypes = {
   agent: AgentNode,
   runner: RunnerNode,
   functionTool: FunctionToolNode,
-  pythonCode: PythonCodeNode, // Add this line
+  pythonCode: (props: NodeProps<PythonCodeNodeData>) => (
+    <ErrorBoundary componentName="PythonCodeNode">
+      <PythonCodeNode {...props} />
+    </ErrorBoundary>
+  )
 };
 let id = 0;
 const getId = () => `dndnode_${id++}`;

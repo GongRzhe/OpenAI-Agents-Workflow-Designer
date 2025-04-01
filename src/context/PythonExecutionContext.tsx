@@ -1,5 +1,5 @@
 // src/context/PythonExecutionContext.tsx
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import {
   executePythonCode,
   executeCodeAsync,
@@ -36,6 +36,8 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
   const [executionResults, setExecutionResults] = useState<Record<string, ExecutionResult>>({});
   const [isPythonBridgeAvailable, setIsPythonBridgeAvailable] = useState<boolean>(false);
   const [checkingBridgeStatus, setCheckingBridgeStatus] = useState<boolean>(false);
+  // Add this ref to track retry attempts for each execution
+  const executionRetries = useRef<Record<string, number>>({});
 
   // Check Python bridge status on component mount
   useEffect(() => {
@@ -78,6 +80,10 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
       } else {
         // For larger code or code with asyncio, execute asynchronously
         const { execution_id } = await executeCodeAsync(code);
+        
+        // Reset retry counter for this execution
+        executionRetries.current[execution_id] = 0;
+        
         return execution_id;
       }
     } catch (error) {
@@ -92,6 +98,11 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
       // Only call the API for async executions
       if (!executionId.startsWith('sync-')) {
         await stopExecutionApi(executionId);
+      }
+      
+      // Remove from retry counter
+      if (executionRetries.current[executionId]) {
+        delete executionRetries.current[executionId];
       }
     } catch (error) {
       console.error('Error stopping execution:', error);
@@ -119,11 +130,47 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
           ...prev,
           [executionId]: result
         }));
+        
+        // Clear retry counter
+        if (executionRetries.current[executionId]) {
+          delete executionRetries.current[executionId];
+        }
       }
       
       return status;
     } catch (error) {
       console.error('Error getting execution status:', error);
+      
+      // Add this code to prevent endless polling for 202 responses
+      if (error && String(error).includes('202')) {
+        // Add retry count to state or use another method to track
+        const currentRetries = executionRetries.current[executionId] || 0;
+        executionRetries.current[executionId] = currentRetries + 1;
+        
+        // If we've tried 5 times and still getting 202, just mark as error
+        if (currentRetries >= 5) {
+          const errorResult: ExecutionResult = {
+            success: false,
+            output: '',
+            error: 'Execution timed out or server is not responding properly',
+            execution_time: 0
+          };
+          
+          setExecutionResults(prev => ({
+            ...prev,
+            [executionId]: errorResult
+          }));
+          
+          // Clear retry counter
+          delete executionRetries.current[executionId];
+          
+          return 'error';
+        }
+        
+        // If we haven't reached max retries, it's still running
+        return 'running';
+      }
+      
       return 'error';
     }
   }, [executionResults]);
@@ -154,9 +201,49 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
         [executionId]: result
       }));
       
+      // Clear retry counter
+      if (executionRetries.current[executionId]) {
+        delete executionRetries.current[executionId];
+      }
+      
       return result;
     } catch (error) {
       console.error('Error getting execution result:', error);
+      
+      // Add retry handling for 202 responses
+      if (error && String(error).includes('202')) {
+        const currentRetries = executionRetries.current[executionId] || 0;
+        executionRetries.current[executionId] = currentRetries + 1;
+        
+        // If we've tried too many times, return an error
+        if (currentRetries >= 5) {
+          const errorResult: ExecutionResult = {
+            success: false,
+            output: '',
+            error: 'Execution timed out or server is not responding properly',
+            execution_time: 0
+          };
+          
+          // Store the error result
+          setExecutionResults(prev => ({
+            ...prev,
+            [executionId]: errorResult
+          }));
+          
+          // Clear retry counter
+          delete executionRetries.current[executionId];
+          
+          return errorResult;
+        }
+        
+        // If we haven't reached max retries, return a pending result
+        return {
+          success: false,
+          output: 'Execution in progress...',
+          error: 'Execution still running. Please wait.',
+          execution_time: 0
+        };
+      }
       
       const errorResult: ExecutionResult = {
         success: false,
