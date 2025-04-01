@@ -29,6 +29,9 @@ const RunnerNode: React.FC<NodeProps<RunnerNodeData>> = ({ id, data, isConnectab
     },
     [id, updateNodeData]
   );
+  const stopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
 
   // Handler for the async/sync switch change
   const handleModeChange = useCallback(
@@ -73,6 +76,10 @@ const RunnerNode: React.FC<NodeProps<RunnerNodeData>> = ({ id, data, isConnectab
           name="input" // Add name attribute
           value={data.input || ''} // Use value
           onChange={handleInputChange}
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          className="nodrag" // Add this class
+          InputProps={{ className: "nodrag" }}
           sx={{ mb: 1 }}
         />
         <FormControlLabel

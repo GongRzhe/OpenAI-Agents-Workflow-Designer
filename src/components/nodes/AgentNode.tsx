@@ -28,6 +28,9 @@ const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable
     },
     [id, updateNodeData]
   );
+  const stopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
 
   return (
     <Card sx={{
@@ -85,6 +88,10 @@ const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable
           name="name" // Add name attribute for handler
           value={data.name || ''} // Use value instead of defaultValue for controlled component
           onChange={handleInputChange}
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          className="nodrag" // Add this class
+          InputProps={{ className: "nodrag" }}
           sx={{ mb: 1 }}
         />
         <TextField
@@ -97,6 +104,10 @@ const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable
           name="instructions" // Add name attribute
           value={data.instructions || ''} // Use value
           onChange={handleInputChange}
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          className="nodrag" // Add this class
+          InputProps={{ className: "nodrag" }}
           sx={{ mb: 1 }}
         />
          <TextField
@@ -106,6 +117,10 @@ const AgentNode: React.FC<NodeProps<AgentNodeData>> = ({ id, data, isConnectable
           fullWidth
           name="handoff_description" // Add name attribute
           value={data.handoff_description || ''} // Use value
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          className="nodrag" // Add this class
+          InputProps={{ className: "nodrag" }}
           onChange={handleInputChange}
         />
         {/* Add other fields like output_type dropdown later */}

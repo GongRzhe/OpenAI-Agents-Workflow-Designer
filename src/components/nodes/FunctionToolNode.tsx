@@ -36,6 +36,10 @@ const FunctionToolNode: React.FC<NodeProps<FunctionToolNodeData>> = ({ id, data,
     [id, updateNodeData]
   );
 
+  const stopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
   // Handler for the return type select change
   const handleReturnTypeChange = useCallback(
     (event: SelectChangeEvent) => {
@@ -78,6 +82,10 @@ const FunctionToolNode: React.FC<NodeProps<FunctionToolNodeData>> = ({ id, data,
           value={data.name || ''} // Use value
           onChange={handleInputChange}
           sx={{ mb: 1 }}
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          className="nodrag" // Add this class
+          InputProps={{ className: "nodrag" }}
         />
         <TextField
           label="Parameters (e.g., city: str, count: int)"
@@ -90,10 +98,14 @@ const FunctionToolNode: React.FC<NodeProps<FunctionToolNodeData>> = ({ id, data,
           value={data.parameters || ''} // Use value
           onChange={handleInputChange}
           sx={{ mb: 1 }}
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          className="nodrag" // Add this class
+          InputProps={{ className: "nodrag" }}
           placeholder="param1: type, param2: type"
         />
         <FormControl fullWidth size="small" sx={{ mb: 1 }}>
-          <InputLabel id="return-type-label">Return Type</InputLabel>
+          <InputLabel id="return-type-label" className="nodrag">Return Type</InputLabel>
           <Select
             labelId="return-type-label"
             id="return-type-select"
@@ -101,9 +113,13 @@ const FunctionToolNode: React.FC<NodeProps<FunctionToolNodeData>> = ({ id, data,
             value={data.returnType || 'str'} // Use value
             label="Return Type"
             onChange={handleReturnTypeChange} // Use updated handler
+            onMouseDown={stopPropagation}
+            onClick={stopPropagation}
+            className="nodrag"
+            inputProps={{ className: "nodrag" }}
           >
             {returnTypes.map((type) => (
-              <MenuItem key={type} value={type}>
+              <MenuItem key={type} value={type} className="nodrag">
                 {type}
               </MenuItem>
             ))}
@@ -119,6 +135,10 @@ const FunctionToolNode: React.FC<NodeProps<FunctionToolNodeData>> = ({ id, data,
           name="implementation" // Add name attribute
           value={data.implementation || ''} // Use value
           onChange={handleInputChange}
+          onMouseDown={stopPropagation}
+          onClick={stopPropagation}
+          className="nodrag" // Add this class
+          InputProps={{ className: "nodrag" }}
           sx={{ fontFamily: 'monospace' }} // Use monospace font for code
           placeholder={`def ${data.name || 'my_function'}(${data.parameters?.split(',').map(p => p.split(':')[0].trim()).join(', ') || '...'}):\n    # Your code here\n    return ...`} // Dynamic placeholder
         />

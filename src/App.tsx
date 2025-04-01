@@ -155,6 +155,7 @@ function App() {
                 nodeTypes={nodeTypes}
                 fitView
                 attributionPosition="bottom-left"
+                noDragClassName="nodrag"
               >
                 <Controls />
                 <Background />
