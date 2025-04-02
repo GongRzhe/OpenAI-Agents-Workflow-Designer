@@ -12,6 +12,7 @@ interface Props {
   children: ReactNode;
   fallbackUI?: ReactNode;
   componentName?: string;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
 interface State {
@@ -36,7 +37,14 @@ class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // Log the error to console
     console.error(`Error in ${this.props.componentName || 'component'}:`, error, errorInfo);
+    
+    // Update state with error details
     this.setState({ errorInfo });
+    
+    // Call optional onError handler
+    if (this.props.onError) {
+      this.props.onError(error, errorInfo);
+    }
   }
 
   handleReset = (): void => {
@@ -69,6 +77,8 @@ class ErrorBoundary extends Component<Props, State> {
             <Typography variant="body2" sx={{ mb: 2 }}>
               An error occurred in the {this.props.componentName || 'component'}.
             </Typography>
+            
+            {/* Error message */}
             <Typography variant="caption" component="div" sx={{ 
               mb: 2, 
               p: 1, 
@@ -80,6 +90,24 @@ class ErrorBoundary extends Component<Props, State> {
             }}>
               {this.state.error?.toString() || 'Unknown error'}
             </Typography>
+            
+            {/* Stack trace (if available) */}
+            {this.state.errorInfo && (
+              <Typography variant="caption" component="div" sx={{ 
+                mb: 2, 
+                p: 1, 
+                backgroundColor: 'rgba(15, 20, 25, 0.7)',
+                borderRadius: '4px',
+                fontFamily: '"Roboto Mono", monospace',
+                maxHeight: '150px',
+                overflowY: 'auto',
+                fontSize: '0.7rem',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {this.state.errorInfo.componentStack}
+              </Typography>
+            )}
+            
             <Button
               variant="contained"
               color="primary"

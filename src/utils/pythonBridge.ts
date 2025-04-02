@@ -1,6 +1,11 @@
 // src/utils/pythonBridge.ts
 // API bridge for communicating with the Python backend
 
+// Import environment variables
+// NOTE: Add .env file to the project root with API_URL variable
+// Or update this to read from a config.ts file
+// const API_BASE_URL = process.env.REACT_APP_PYTHON_API_URL || 'http://localhost:8888';
+const API_BASE_URL = 'http://localhost:8888';
 // Type definitions
 export interface ExecutionResult {
     success: boolean;
@@ -12,13 +17,20 @@ export interface ExecutionResult {
 
 export type ExecutionStatus = 'running' | 'completed' | 'error' | 'unknown';
 
-// API Configuration
-const API_BASE_URL = 'http://localhost:8888'; // Update this to match your Python API server
-
-// Helper function to handle API errors
-const handleApiError = (error: any, defaultMessage: string): never => {
+// Centralized error handling
+const handleApiError = (error: unknown, defaultMessage: string): Error => {
     console.error(`API Error: ${defaultMessage}`, error);
-    throw new Error(error?.message || defaultMessage);
+
+    if (error instanceof Error) {
+        return error;
+    }
+
+    if (error && typeof error === 'object' && 'message' in error &&
+        typeof error.message === 'string') {
+        return new Error(error.message);
+    }
+
+    return new Error(defaultMessage);
 };
 
 /**
@@ -26,12 +38,13 @@ const handleApiError = (error: any, defaultMessage: string): never => {
  */
 export const executePythonCode = async (code: string, timeout: number = 30): Promise<ExecutionResult> => {
     try {
-        console.log("Executing code:", code.substring(0, 100) + "..."); // Log just the beginning
-        
+        // Only log first 50 chars for security and cleanliness
+        console.log("Executing code:", code.substring(0, 50) + "...");
+
         // Add a timeout to the fetch request
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout * 1000);
-        
+
         const response = await fetch(`${API_BASE_URL}/execute`, {
             method: 'POST',
             headers: {
@@ -40,11 +53,11 @@ export const executePythonCode = async (code: string, timeout: number = 30): Pro
             body: JSON.stringify({
                 code,
                 timeout,
-                async_execution: false // Explicitly set to synchronous
+                async_execution: false
             }),
             signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
 
         if (!response.ok) {
@@ -54,8 +67,9 @@ export const executePythonCode = async (code: string, timeout: number = 30): Pro
 
         return await response.json();
     } catch (error) {
-        // Proper type checking before accessing error.name
-        if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
+        // Handle AbortError (timeout) specially
+        if (error && typeof error === 'object' && 'name' in error &&
+            error.name === 'AbortError') {
             return {
                 success: false,
                 output: '',
@@ -63,7 +77,7 @@ export const executePythonCode = async (code: string, timeout: number = 30): Pro
                 execution_time: timeout,
             };
         }
-        
+
         return {
             success: false,
             output: '',
@@ -78,6 +92,11 @@ export const executePythonCode = async (code: string, timeout: number = 30): Pro
  */
 export const executeCodeAsync = async (code: string, timeout: number = 30): Promise<ExecutionResult> => {
     try {
+        console.log("Executing async code:", code.substring(0, 50) + "...");
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for initial request
+
         const response = await fetch(`${API_BASE_URL}/execute`, {
             method: 'POST',
             headers: {
@@ -86,9 +105,12 @@ export const executeCodeAsync = async (code: string, timeout: number = 30): Prom
             body: JSON.stringify({
                 code,
                 timeout,
-                async_execution: true // Set to asynchronous execution
+                async_execution: true
             }),
+            signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -97,8 +119,13 @@ export const executeCodeAsync = async (code: string, timeout: number = 30): Prom
 
         return await response.json();
     } catch (error) {
-        console.error('Failed to execute code asynchronously:', error);
-        throw new Error(error instanceof Error ? error.message : 'Failed to execute code asynchronously');
+        // Handle AbortError specially
+        if (error && typeof error === 'object' && 'name' in error &&
+            error.name === 'AbortError') {
+            throw new Error('Request to execute code timed out. The server may be overloaded.');
+        }
+
+        throw handleApiError(error, 'Failed to execute code asynchronously');
     }
 };
 
@@ -107,7 +134,14 @@ export const executeCodeAsync = async (code: string, timeout: number = 30): Prom
  */
 export const getExecutionStatus = async (executionId: string): Promise<ExecutionStatus> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/status/${executionId}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+        const response = await fetch(`${API_BASE_URL}/status/${executionId}`, {
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             if (response.status === 404) {
@@ -120,6 +154,13 @@ export const getExecutionStatus = async (executionId: string): Promise<Execution
         const data = await response.json();
         return data.status as ExecutionStatus;
     } catch (error) {
+        // Handle AbortError specially
+        if (error && typeof error === 'object' && 'name' in error &&
+            error.name === 'AbortError') {
+            console.error('Timeout checking execution status');
+            return 'unknown';
+        }
+
         console.error('Error checking execution status:', error);
         return 'error';
     }
@@ -130,7 +171,14 @@ export const getExecutionStatus = async (executionId: string): Promise<Execution
  */
 export const getExecutionResult = async (executionId: string): Promise<ExecutionResult> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/result/${executionId}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+        const response = await fetch(`${API_BASE_URL}/result/${executionId}`, {
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             if (response.status === 202) {
@@ -149,10 +197,19 @@ export const getExecutionResult = async (executionId: string): Promise<Execution
 
         // Parse JSON once and store the result
         const result = await response.json();
-        console.log('API response for execution result:', result);
-        
         return result;
     } catch (error) {
+        // Handle AbortError specially
+        if (error && typeof error === 'object' && 'name' in error &&
+            error.name === 'AbortError') {
+            return {
+                success: false,
+                output: '',
+                error: 'Request timed out when fetching execution result',
+                execution_time: 0,
+            };
+        }
+
         return {
             success: false,
             output: '',
@@ -162,6 +219,9 @@ export const getExecutionResult = async (executionId: string): Promise<Execution
     }
 };
 
+/**
+ * Execute code and poll for the result
+ */
 export const executePythonCodeAndWaitForResult = async (code: string, timeout: number = 30): Promise<ExecutionResult> => {
     try {
         // Start async execution
@@ -177,34 +237,13 @@ export const executePythonCodeAndWaitForResult = async (code: string, timeout: n
             };
         }
 
-        // Poll for completion
-        let completed = false;
-        const maxAttempts = 30; // Adjust based on your timeout needs
-
-        for (let i = 0; i < maxAttempts; i++) {
-            const status = await getExecutionStatus(executionId);
-            console.log(`Status check ${i + 1}: ${status}`);
-
-            if (status === 'completed' || status === 'error') {
-                completed = true;
-                break;
-            }
-
-            // Wait before checking again
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        if (!completed) {
-            return {
-                success: false,
-                output: '',
-                error: 'Execution did not complete in the expected time',
-                execution_time: timeout,
-            };
-        }
-
-        // Get the result once completed
-        return await getExecutionResult(executionId);
+        // Return immediately, let caller decide how to poll
+        return {
+            ...execResponse,
+            success: true,
+            output: 'Execution started successfully',
+            execution_id: executionId
+        };
     } catch (error) {
         return {
             success: false,
@@ -220,14 +259,14 @@ export const executePythonCodeAndWaitForResult = async (code: string, timeout: n
  */
 export const checkPythonBridgeStatus = async (): Promise<boolean> => {
     try {
-        // Create a controller for timeout instead of using AbortSignal.timeout
+        // Create a controller for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000);
-        
+
         const response = await fetch(`${API_BASE_URL}/status`, {
             signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
         return response.ok;
     } catch (error) {

@@ -1,5 +1,5 @@
 // src/components/nodes/PythonCodeNode.tsx
-import React, { memo, useCallback, useState, useEffect, useRef } from 'react';
+import React, { memo, useCallback, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from 'reactflow';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -27,6 +27,80 @@ export interface PythonCodeNodeData {
     dimensions?: { width: number; height: number };
 }
 
+// Define execution state type for reducer
+type ExecutionState = {
+    status: ExecutionStatus;
+    isExecuting: boolean;
+    result: ExecutionResult | null;
+    errorMessage: string;
+};
+
+// Define actions for reducer
+type ExecutionAction = 
+    | { type: 'START_EXECUTION' }
+    | { type: 'EXECUTION_COMPLETED', result: ExecutionResult }
+    | { type: 'EXECUTION_ERROR', error: string }
+    | { type: 'UPDATE_STATUS', status: ExecutionStatus }
+    | { type: 'STOP_EXECUTION' }
+    | { type: 'RESET' };
+
+// Reducer function for execution state
+const executionReducer = (state: ExecutionState, action: ExecutionAction): ExecutionState => {
+    switch (action.type) {
+        case 'START_EXECUTION':
+            return {
+                ...state,
+                isExecuting: true,
+                status: 'running',
+                result: null,
+                errorMessage: ''
+            };
+        case 'EXECUTION_COMPLETED':
+            return {
+                ...state,
+                isExecuting: false,
+                status: 'completed',
+                result: action.result,
+                errorMessage: action.result.success ? '' : (action.result.error || '')
+            };
+        case 'EXECUTION_ERROR':
+            return {
+                ...state,
+                isExecuting: false,
+                status: 'error',
+                errorMessage: action.error
+            };
+        case 'UPDATE_STATUS':
+            return {
+                ...state,
+                status: action.status
+            };
+        case 'STOP_EXECUTION':
+            return {
+                ...state,
+                isExecuting: false,
+                status: 'idle',
+                errorMessage: 'Execution stopped by user'
+            };
+        case 'RESET':
+            return {
+                isExecuting: false,
+                status: 'idle',
+                result: null,
+                errorMessage: ''
+            };
+        default:
+            return state;
+    }
+};
+
+const initialExecutionState: ExecutionState = {
+    isExecuting: false,
+    status: 'idle',
+    result: null,
+    errorMessage: ''
+};
+
 const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isConnectable, selected }) => {
     const { updateNodeData, resizeNode } = useNodeData();
     const {
@@ -39,117 +113,65 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
         refreshBridgeStatus
     } = usePythonExecution();
 
-    const [isExecuting, setIsExecuting] = useState(false);
-    const [status, setStatus] = useState<ExecutionStatus>('idle');
-    const [result, setResult] = useState<ExecutionResult | null>(null);
-    const [errorMessage, setErrorMessage] = useState<string>('');
-    const latestExecutionIdRef = useRef(data.executionId);
-    const executionCompletedRef = useRef(false);
-    const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
+    // Use reducer for execution state management
+    const [executionState, dispatch] = React.useReducer(
+        executionReducer,
+        initialExecutionState
+    );
 
-    
-    const forceUpdate = useCallback(() => {
-        setForceUpdateCounter(prev => prev + 1);
-    }, []);
-
-    // useEffect(() => {
-    //     latestExecutionIdRef.current = data.executionId;
-    // }, [data.executionId]);
-
+    // Effect for handling execution status updates
     useEffect(() => {
-        if (data.executionId) {
-            latestExecutionIdRef.current = data.executionId;
-            executionCompletedRef.current = false; // Reset completed state
-        }
-    }, [data.executionId]);
-
-
-
-    useEffect(() => {
-        if (!data.executionId) {
-            setStatus('idle');
-            setResult(null);
-            return;
-        }
-
-        // If we have a new execution ID, set status to running
-        if (data.executionId !== latestExecutionIdRef.current) {
-            setStatus('running');
-        }
-    }, [data.executionId]);
-
-    // Use getResult properly
-
-    useEffect(() => {
-        // Don't start polling if not running or no ID
-        if (!data.executionId || status !== 'running' || executionCompletedRef.current) {
+        if (!data.executionId || executionState.status !== 'running') {
             return;
         }
 
         let isMounted = true;
         let timeoutId: ReturnType<typeof setTimeout> | null = null;
         const startTime = Date.now();
-        const MAX_POLLING_TIME = 60000;
+        const MAX_POLLING_TIME = 60000; // 60 seconds
+        const POLLING_INTERVAL = 1000;  // 1 second
 
-        const fetchResult = async () => {
+        const fetchStatus = async () => {
             if (!isMounted || !data.executionId) return;
 
+            // Check if we've been polling too long
+            if (Date.now() - startTime > MAX_POLLING_TIME) {
+                dispatch({ 
+                    type: 'EXECUTION_ERROR', 
+                    error: 'Execution timed out after 60 seconds' 
+                });
+                return;
+            }
+
             try {
-                // First check status
-                const currentStatus = await getExecutionStatus(data.executionId);
-                console.log(`Current status for ${data.executionId}: ${currentStatus}`);
-
-                // Only fetch result if not running (either completed or error)
-                if (currentStatus !== 'running') {
-                    const executionResult = await getResult(data.executionId);
-                    console.log('Received execution result:', executionResult);
-
-                    if (isMounted) {
-                        // Use a synchronized batch update
-                        await Promise.resolve(); // Micro-task to ensure DOM update
-                        setResult(executionResult);
-                        setStatus(currentStatus);
-                        setIsExecuting(false);
-
-                        // Force component to re-render after state updates
-                        forceUpdate();
-
-                        // Add this line to clear error message on success
-                        if (executionResult.success) {
-                            setErrorMessage('');
-                        }
-
-                        // Early return to avoid setting another timeout
-                        return;
-                    }
-                }
-
-                // If still running AND component is still mounted, schedule next check
-                if (isMounted) {
-                    timeoutId = setTimeout(fetchResult, 1000);
+                const status = await getExecutionStatus(data.executionId);
+                
+                if (status === 'completed' || status === 'error') {
+                    const result = await getResult(data.executionId);
+                    dispatch({ type: 'EXECUTION_COMPLETED', result });
+                } else {
+                    // Schedule next check if still running
+                    timeoutId = setTimeout(fetchStatus, POLLING_INTERVAL);
                 }
             } catch (error) {
-                console.error('Error fetching execution result:', error);
-                if (isMounted) {
-                    setStatus('error');
-                    setIsExecuting(false);
-                    setErrorMessage('Error checking execution status');
-                    forceUpdate(); // Ensure UI updates on error too
-                }
+                dispatch({ 
+                    type: 'EXECUTION_ERROR', 
+                    error: error instanceof Error ? error.message : 'Error checking execution status'
+                });
             }
         };
 
-        // Initial check
-        fetchResult();
+        // Start polling
+        fetchStatus();
 
+        // Cleanup function
         return () => {
-            console.log('Cleaning up polling useEffect');
             isMounted = false;
             if (timeoutId) {
                 clearTimeout(timeoutId);
             }
         };
-    }, [data.executionId, status, getExecutionStatus, getResult]);
+    }, [data.executionId, executionState.status, getExecutionStatus, getResult]);
 
     // Handler for text input changes
     const handleInputChange = useCallback(
@@ -160,10 +182,11 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
         [id, updateNodeData]
     );
 
+    // Validate Python code
     const validatePythonCode = useCallback((code: string): boolean => {
         if (!code || code.trim() === '') return false;
 
-        // Simple syntax checks
+        // Simple syntax checks (could be expanded)
         const syntaxErrors = [
             { pattern: /^\s*import\s+$/, message: "Incomplete import statement" },
             { pattern: /\bdef\s+[^\(]*$/, message: "Incomplete function definition" },
@@ -180,26 +203,20 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
     // Handle execute code button click
     const handleExecuteCode = useCallback(async () => {
         if (!data.code || !validatePythonCode(data.code)) {
-            setStatus('error');
-            setErrorMessage('Invalid Python code');
+            dispatch({ type: 'EXECUTION_ERROR', error: 'Invalid Python code' });
             return;
         }
 
-        // Clear previous results and errors
-        setResult(null);
-        setErrorMessage('');
-        setIsExecuting(true);
-        setStatus('running');
-        executionCompletedRef.current = false; // Reset completed state
+        dispatch({ type: 'START_EXECUTION' });
 
         try {
             const executionId = await executeCode(data.code);
-            updateNodeData(id, {
-                executionId,
-                hasError: false
-            });
+            updateNodeData(id, { executionId });
         } catch (error) {
-            handleExecutionError(error, 'executing code');
+            dispatch({ 
+                type: 'EXECUTION_ERROR', 
+                error: error instanceof Error ? error.message : 'Error executing code' 
+            });
         }
     }, [data.code, executeCode, id, updateNodeData, validatePythonCode]);
 
@@ -209,17 +226,15 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
 
         try {
             await stopExecution(data.executionId);
-            setIsExecuting(false);
-            setStatus('idle');
-            setErrorMessage('Execution stopped by user');
+            dispatch({ type: 'STOP_EXECUTION' });
         } catch (error) {
             console.error('Error stopping execution:', error);
             // Even if there's an error stopping, update UI to indicate it's no longer running
-            setIsExecuting(false);
+            dispatch({ type: 'STOP_EXECUTION' });
         }
     }, [data.executionId, stopExecution]);
 
-    // Add handler to refresh bridge status
+    // Refresh bridge status
     const handleRefreshBridgeStatus = useCallback(async () => {
         try {
             await refreshBridgeStatus();
@@ -228,18 +243,12 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
         }
     }, [refreshBridgeStatus]);
 
-    const handleExecutionError = useCallback((error: unknown, action: string) => {
-        console.error(`Error ${action}:`, error);
-        setStatus('error');
-        setIsExecuting(false);
-        setErrorMessage(error instanceof Error ? error.message : `Unknown error while ${action}`);
-        updateNodeData(id, { hasError: true });
-    }, [id, updateNodeData]);
-
-    // Prevent event propagation to parent elements
+    // Prevent event propagation
     const stopPropagation = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
     }, []);
+
+    const { status, isExecuting, result, errorMessage } = executionState;
 
     return (
         <>
@@ -292,18 +301,6 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                     },
                 }}
             >
-
-                {data.executionId && (
-                    <Box sx={{ mb: 1, fontSize: '0.7rem', color: '#aaa' }}>
-                        <Typography variant="caption">
-                            Execution ID: {data.executionId.substring(0, 8)}... |
-                            Status: {status} |
-                            isExecuting: {isExecuting.toString()} |
-                            Has Result: {result ? 'Yes' : 'No'}
-                        </Typography>
-                    </Box>
-                )}
-
                 {/* Input Handle (Left) */}
                 <Handle
                     type="target"
