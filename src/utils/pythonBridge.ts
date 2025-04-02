@@ -1,5 +1,5 @@
 // src/utils/pythonBridge.ts
-const API_BASE_URL = process.env.REACT_APP_PYTHON_API_URL || 'http://localhost:8888';
+const API_BASE_URL = 'http://localhost:8888';
 
 // Type definitions
 export interface ExecutionResult {
