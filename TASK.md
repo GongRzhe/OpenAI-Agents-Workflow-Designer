@@ -19,29 +19,29 @@
   - Implemented execution bridge with FastAPI
   - Added dependency management for generated code
   - Created execution results display in UI
+- [x] **XYZ-009**: Implement MCPNode (80%)
+  - Created MCPNode component with server configuration options
+  - Added support for Git, Filesystem, and custom MCP servers
+  - Updated code generator to handle MCP nodes
+  - Implemented UI for connecting MCP servers to Agents
 
 ## Upcoming Tasks
 
 ### High Priority 🔴
 
-- [ ] **XYZ-009**: Implement MCP Node
-  - Create MCPNode component with server configuration options
-  - Support for Git, Filesystem, and custom MCP servers
-  - Update code generator to handle MCP nodes
-  - Integrate with Agent nodes
-  - Add documentation and examples
-
-- [ ] **XYZ-007**: Fix React compatibility issues
-  - Update React version from 19.0.0 (future version) to 18.2.0
-  - Update Material-UI and other dependencies to compatible versions
-  - Resolve import conflicts in PythonCodeNode.tsx and PythonExecutionContext.tsx
+- [ ] **XYZ-009**: Complete MCP Node implementation
+  - Test integration with Agent nodes
+  - Fix deployment issues with Git and Filesystem servers
+  - Add environment variable support for MCP servers
+  - Add extensive documentation and examples
+  - Implement status indicators for MCP server connections
 
 - [ ] **XYZ-008**: Enhance Python code execution
-  - Add error boundary for execution failures
-  - Implement progress indicators for long-running tasks
-  - Add execution history
-  - Improve browser compatibility for execution monitoring
-  - Add cleanup for completed executions to prevent memory leaks
+  - Implement error boundary for execution failures
+  - Improve progress indicators for long-running tasks
+  - Add execution history with local storage persistence
+  - Add error analysis for common Python syntax issues
+  - Implement cleanup for completed executions to prevent memory leaks
 
 - [ ] **ABC-001**: Implement copy/paste functionality
   - Keyboard shortcuts (Ctrl+C, Ctrl+V)
@@ -71,6 +71,7 @@
   - Better documentation in generated code
   - Support for Python dependency specification
   - Integration with Python execution environment
+  - Support for newer OpenAI Agents SDK features
 
 ### Low Priority 🟢
 
@@ -131,14 +132,17 @@
   - Issue: Long-running executions can cause memory build-up
   - Solution: Implement proper cleanup for completed executions
 
+- [ ] Fix MCP server connection handling
+  - Issue: MCP servers don't always initialize properly
+  - Solution: Improve error handling and provide clear error messages to users
+
 ## Priority Order for Next Sprint
 
-1. **XYZ-009**: Implement MCP Node
-   - Create MCPNode component structure
-   - Implement UI for server configuration
-   - Update code generator for MCP nodes
-   - Test with Git and Filesystem MCP servers
-   - Add documentation and examples
+1. **XYZ-009**: Complete MCP Node implementation
+   - Test integration with Agent nodes
+   - Fix deployment issues
+   - Add extensive documentation and examples
+   - Implement status indicators for MCP connections
 
 2. **XYZ-007**: Fix React compatibility issues
    - Update package.json with correct React version and dependencies

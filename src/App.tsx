@@ -52,6 +52,7 @@ import './styles/SciFiTheme.css';
 import PythonCodeNode, { PythonCodeNodeData } from './components/nodes/PythonCodeNode';
 import { PythonExecutionProvider } from './context/PythonExecutionContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import MCPNode from './components/nodes/MCPNode';
 // Define initial elements if needed, or start empty
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
@@ -61,6 +62,7 @@ const nodeTypes = {
   agent: AgentNode,
   runner: RunnerNode,
   functionTool: FunctionToolNode,
+  mcp: MCPNode,
   pythonCode: (props: NodeProps<PythonCodeNodeData>) => (
     <ErrorBoundary componentName="PythonCodeNode">
       <PythonCodeNode {...props} />

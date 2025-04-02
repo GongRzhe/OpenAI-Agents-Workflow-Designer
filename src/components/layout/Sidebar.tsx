@@ -14,7 +14,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree'; // Placeholder fo
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'; // Placeholder for Runner
 import BuildIcon from '@mui/icons-material/Build'; // Placeholder for Function Tool
 import CodeIcon from '@mui/icons-material/Code'; // New import for Python Code
-
+import ApiIcon from '@mui/icons-material/Api';
 const drawerWidth = 240;
 
 const Sidebar: React.FC = () => {
@@ -151,6 +151,41 @@ const Sidebar: React.FC = () => {
               </ListItemIcon>
               <ListItemText
                 primary="Function Tool"
+                primaryTypographyProps={{
+                  sx: {
+                    fontFamily: '"Orbitron", sans-serif',
+                    color: '#f6f8ff'
+                  }
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+
+          {/* Draggable MCP Node */}
+          <ListItem disablePadding>
+            <ListItemButton
+              onDragStart={(event) => onDragStart(event, 'mcp')}
+              draggable
+              sx={{
+                cursor: 'grab',
+                mb: 1,
+                borderRadius: 1,
+                background: 'rgba(100, 100, 255, 0.1)',
+                border: '1px solid rgba(100, 100, 255, 0.3)',
+                boxShadow: '0 2px 8px rgba(100, 100, 255, 0.2)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  background: 'rgba(100, 100, 255, 0.2)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(100, 100, 255, 0.3)',
+                }
+              }}
+            >
+              <ListItemIcon>
+                <ApiIcon sx={{ color: '#6464FF' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="MCP Server"
                 primaryTypographyProps={{
                   sx: {
                     fontFamily: '"Orbitron", sans-serif',

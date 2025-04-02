@@ -148,6 +148,117 @@ Model Context Protocol servers that provide external tools to agents.
   - Click node handles and drag to create connections
   - Right-click on nodes or edges for context menu
 
+## Node Connection Guide for OpenAI Agents Workflow Designer
+
+### Node Connection Guide
+
+Each node in the workflow designer has specific connection points (handles) that serve different purposes. Understanding how to connect nodes correctly is essential for building functional workflows.
+
+#### Connection Points
+
+Nodes have handles at different positions:
+- **Top Handle**: Typically used for receiving input
+- **Bottom Handle**: Typically used for sending output or creating handoffs
+- **Left Handle**: Used for specialized connections (e.g., tool access)
+- **Right Handle**: Used for specialized connections (e.g., tool provision)
+
+#### Node-Specific Connection Rules
+
+##### Agent Node
+
+| Handle Position | Connection Type | Compatible Nodes | Effect |
+|-----------------|----------------|------------------|--------|
+| Top | Input | Runner, Agent, MCP | Receives execution flow or handoffs from other agents |
+| Bottom | Output/Handoff | Agent | Creates handoffs to specialized agents |
+| Left | Tool Input | Function Tool | Receives tool capabilities from function tools |
+| Right | Tool Output | N/A | Provides access to agent capabilities (rarely used) |
+
+##### Runner Node
+
+| Handle Position | Connection Type | Compatible Nodes | Effect |
+|-----------------|----------------|------------------|--------|
+| Top | N/A | N/A | Not used |
+| Bottom | Agent Connection | Agent | Initiates execution flow to the connected agent |
+| Left | N/A | N/A | Not used |
+| Right | N/A | N/A | Not used |
+
+##### Function Tool Node
+
+| Handle Position | Connection Type | Compatible Nodes | Effect |
+|-----------------|----------------|------------------|--------|
+| Top | N/A | N/A | Not used |
+| Bottom | Tool Provision | Agent | Provides the tool functionality to the agent |
+| Left | N/A | N/A | Not used |
+| Right | N/A | N/A | Not used |
+
+##### Python Code Node
+
+| Handle Position | Connection Type | Compatible Nodes | Effect |
+|-----------------|----------------|------------------|--------|
+| Top | Input | Any Node | Receives data for processing |
+| Bottom | Output | Any Node | Sends processed data |
+| Left | N/A | N/A | Not used |
+| Right | N/A | N/A | Not used |
+
+##### MCP Node
+
+| Handle Position | Connection Type | Compatible Nodes | Effect |
+|-----------------|----------------|------------------|--------|
+| Top | N/A | N/A | Not used |
+| Bottom | Server Provision | Agent | Provides MCP server access to the agent |
+| Left | N/A | N/A | Not used |
+| Right | N/A | N/A | Not used |
+
+#### Common Connection Patterns
+
+1. **Basic Agent Execution**:
+   ```
+   Runner (Bottom) → Agent (Top)
+   ```
+   Initiates the agent with the input specified in the Runner.
+
+2. **Agent with Tools**:
+   ```
+   Function Tool (Bottom) → Agent (Left)
+   ```
+   Provides the agent with additional capabilities through function tools.
+
+3. **Agent Handoff Chain**:
+   ```
+   Agent A (Bottom) → Agent B (Top)
+   ```
+   Creates a handoff from Agent A to the specialized Agent B.
+
+4. **MCP-Enhanced Agent**:
+   ```
+   MCP Server (Bottom) → Agent (Top)
+   ```
+   Provides the agent with access to external tools through MCP.
+
+5. **Multi-Tool Agent**:
+   ```
+   Function Tool 1 (Bottom) → Agent (Left)
+   Function Tool 2 (Bottom) → Agent (Left)
+   ```
+   Equips an agent with multiple tools for enhanced capabilities.
+
+6. **Triage Pattern**:
+   ```
+   Runner (Bottom) → Triage Agent (Top)
+   Triage Agent (Bottom) → Specialist Agent A (Top)
+   Triage Agent (Bottom) → Specialist Agent B (Top)
+   ```
+   Creates a workflow where a triage agent directs queries to the appropriate specialist agents.
+
+#### Connection Troubleshooting
+
+- **Connection Not Working**: Ensure you're connecting to the correct handles on both nodes
+- **Tool Not Available to Agent**: Check that the Function Tool is connected to the Agent's left handle
+- **Handoff Not Working**: Verify that the source agent is connected to the target agent's top handle
+- **MCP Server Not Accessible**: Confirm the MCP node is properly connected to the agent's top handle
+- **Generated Code Issues**: Inspect the node connections in the visual editor and ensure they match the intended workflow
+
+
 ## Project Structure
 
 ```

@@ -16,7 +16,7 @@
 
 /* Node styling */
 .react-flow__node {
-    transition: all 0.3s ease;
+    transition: box-shadow 0.3s ease, border 0.3s ease;
     border: 1px solid var(--sci-fi-accent);
     box-shadow: var(--sci-fi-edge-glow);
 }
@@ -333,3 +333,146 @@
   .MuiMenuItem-root.Mui-selected {
     animation: selectPulse 2s infinite ease-in-out !important;
   }
+
+
+  /* Modal Styling for Sci-Fi Theme */
+.sci-fi-modal {
+  background: linear-gradient(135deg, rgba(25, 32, 56, 0.95), rgba(15, 20, 40, 0.98));
+  border: 1px solid var(--sci-fi-primary);
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(12, 235, 235, 0.4), inset 0 0 10px rgba(12, 235, 235, 0.1);
+  backdrop-filter: blur(10px);
+  color: var(--sci-fi-light);
+}
+
+.sci-fi-modal-title {
+  color: var(--sci-fi-primary);
+  font-family: var(--sci-fi-font);
+  text-shadow: 0 0 5px rgba(12, 235, 235, 0.5);
+  letter-spacing: 1px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(12, 235, 235, 0.3);
+}
+
+.sci-fi-modal-content {
+  margin: 16px 0;
+}
+
+.sci-fi-file-drop-area {
+  border: 2px dashed rgba(12, 235, 235, 0.4);
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: rgba(12, 235, 235, 0.05);
+  margin: 16px 0;
+}
+
+.sci-fi-file-drop-area:hover {
+  border-color: var(--sci-fi-primary);
+  background: rgba(12, 235, 235, 0.1);
+  box-shadow: inset 0 0 10px rgba(12, 235, 235, 0.1);
+}
+
+.sci-fi-file-drop-area-icon {
+  color: var(--sci-fi-primary);
+  font-size: 48px;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 0 5px rgba(12, 235, 235, 0.5));
+}
+
+.sci-fi-file-info {
+  background: rgba(25, 32, 56, 0.8);
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 3px solid var(--sci-fi-primary);
+}
+
+.sci-fi-json-preview {
+  background: rgba(15, 20, 30, 0.8);
+  border: 1px solid rgba(12, 235, 235, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  font-family: 'Roboto Mono', monospace;
+  color: #e0e0e0;
+  max-height: 200px;
+  overflow: auto;
+  position: relative;
+}
+
+.sci-fi-json-preview::before {
+  content: "JSON";
+  position: absolute;
+  top: -10px;
+  right: 10px;
+  background: var(--sci-fi-primary);
+  color: var(--sci-fi-dark);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--sci-fi-font);
+}
+
+.sci-fi-modal-button {
+  font-family: var(--sci-fi-font);
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.sci-fi-modal-button-primary {
+  background: linear-gradient(135deg, var(--sci-fi-primary), var(--sci-fi-accent));
+  color: var(--sci-fi-dark);
+  border: none;
+  box-shadow: 0 0 10px rgba(12, 235, 235, 0.5);
+}
+
+.sci-fi-modal-button-primary:hover {
+  box-shadow: 0 0 15px rgba(12, 235, 235, 0.7);
+  transform: translateY(-2px);
+}
+
+.sci-fi-modal-button-secondary {
+  background: transparent;
+  color: var(--sci-fi-primary);
+  border: 1px solid var(--sci-fi-primary);
+}
+
+.sci-fi-modal-button-secondary:hover {
+  background: rgba(12, 235, 235, 0.1);
+  box-shadow: 0 0 10px rgba(12, 235, 235, 0.3);
+}
+
+@keyframes jsonPulse {
+  0% { background-color: rgba(12, 235, 235, 0.03); }
+  50% { background-color: rgba(12, 235, 235, 0.08); }
+  100% { background-color: rgba(12, 235, 235, 0.03); }
+}
+
+.sci-fi-json-preview {
+  animation: jsonPulse 4s infinite ease-in-out;
+}
+
+.sci-fi-json-preview:hover {
+  animation: none;
+  background-color: rgba(12, 235, 235, 0.1);
+}
+
+@keyframes float {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(10px, 10px);
+  }
+  50% {
+    transform: translate(0, 20px);
+  }
+  75% {
+    transform: translate(-10px, 10px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
