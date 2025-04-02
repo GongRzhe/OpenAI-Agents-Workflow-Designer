@@ -12,59 +12,166 @@ import Chip from '@mui/material/Chip';
 import CodeIcon from '@mui/icons-material/Code';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useNodeData } from '../../context/NodeDataContext';
 import { usePythonExecution } from '../../context/PythonExecutionContext';
+import { ExecutionStatus, ExecutionResult } from '../../context/PythonExecutionContext';
 
 // Define the data structure expected by this node
-interface PythonCodeNodeData {
+export interface PythonCodeNodeData {
     name?: string;
     code?: string;
     executionId?: string;
     dimensions?: { width: number; height: number };
 }
 
+// Define execution state type for reducer
+type ExecutionState = {
+    status: ExecutionStatus;
+    isExecuting: boolean;
+    result: ExecutionResult | null;
+    errorMessage: string;
+};
+
+// Define actions for reducer
+type ExecutionAction = 
+    | { type: 'START_EXECUTION' }
+    | { type: 'EXECUTION_COMPLETED', result: ExecutionResult }
+    | { type: 'EXECUTION_ERROR', error: string }
+    | { type: 'UPDATE_STATUS', status: ExecutionStatus }
+    | { type: 'STOP_EXECUTION' }
+    | { type: 'RESET' };
+
+// Reducer function for execution state
+const executionReducer = (state: ExecutionState, action: ExecutionAction): ExecutionState => {
+    switch (action.type) {
+        case 'START_EXECUTION':
+            return {
+                ...state,
+                isExecuting: true,
+                status: 'running',
+                result: null,
+                errorMessage: ''
+            };
+        case 'EXECUTION_COMPLETED':
+            return {
+                ...state,
+                isExecuting: false,
+                status: 'completed',
+                result: action.result,
+                errorMessage: action.result.success ? '' : (action.result.error || '')
+            };
+        case 'EXECUTION_ERROR':
+            return {
+                ...state,
+                isExecuting: false,
+                status: 'error',
+                errorMessage: action.error
+            };
+        case 'UPDATE_STATUS':
+            return {
+                ...state,
+                status: action.status
+            };
+        case 'STOP_EXECUTION':
+            return {
+                ...state,
+                isExecuting: false,
+                status: 'idle',
+                errorMessage: 'Execution stopped by user'
+            };
+        case 'RESET':
+            return {
+                isExecuting: false,
+                status: 'idle',
+                result: null,
+                errorMessage: ''
+            };
+        default:
+            return state;
+    }
+};
+
+const initialExecutionState: ExecutionState = {
+    isExecuting: false,
+    status: 'idle',
+    result: null,
+    errorMessage: ''
+};
+
 const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isConnectable, selected }) => {
     const { updateNodeData, resizeNode } = useNodeData();
-    const { executeCode, stopExecution, getExecutionStatus, executionResults } = usePythonExecution();
-    const [isExecuting, setIsExecuting] = useState(false);
-    const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
+    const {
+        executeCode,
+        stopExecution,
+        getExecutionStatus,
+        getResult,
+        isPythonBridgeAvailable,
+        checkingBridgeStatus,
+        refreshBridgeStatus
+    } = usePythonExecution();
 
-    // Update status based on executionId
+    // Use reducer for execution state management
+    const [executionState, dispatch] = React.useReducer(
+        executionReducer,
+        initialExecutionState
+    );
+
+    // Effect for handling execution status updates
     useEffect(() => {
-        if (!data.executionId) {
-            setStatus('idle');
+        if (!data.executionId || executionState.status !== 'running') {
             return;
         }
 
-        const result = executionResults[data.executionId];
-        if (!result) {
-            // If we have an executionId but no result, it's probably running
-            setStatus('running');
-            return;
-        }
+        let isMounted = true;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        const startTime = Date.now();
+        const MAX_POLLING_TIME = 60000; // 60 seconds
+        const POLLING_INTERVAL = 1000;  // 1 second
 
-        setStatus(result.success ? 'completed' : 'error');
-    }, [data.executionId, executionResults]);
+        const fetchStatus = async () => {
+            if (!isMounted || !data.executionId) return;
 
-    // Poll for status updates while executing
-    useEffect(() => {
-        if (!data.executionId || status !== 'running') return;
+            // Check if we've been polling too long
+            if (Date.now() - startTime > MAX_POLLING_TIME) {
+                dispatch({ 
+                    type: 'EXECUTION_ERROR', 
+                    error: 'Execution timed out after 60 seconds' 
+                });
+                return;
+            }
 
-        const intervalId = setInterval(async () => {
             try {
-                const currentStatus = await getExecutionStatus(data.executionId!);
-                if (currentStatus !== 'running') {
-                    setIsExecuting(false);
+                const status = await getExecutionStatus(data.executionId);
+                
+                if (status === 'completed' || status === 'error') {
+                    const result = await getResult(data.executionId);
+                    dispatch({ type: 'EXECUTION_COMPLETED', result });
+                } else {
+                    // Schedule next check if still running
+                    timeoutId = setTimeout(fetchStatus, POLLING_INTERVAL);
                 }
             } catch (error) {
-                console.error('Error checking execution status:', error);
+                dispatch({ 
+                    type: 'EXECUTION_ERROR', 
+                    error: error instanceof Error ? error.message : 'Error checking execution status'
+                });
             }
-        }, 1000);
+        };
 
-        return () => clearInterval(intervalId);
-    }, [data.executionId, status, getExecutionStatus]);
+        // Start polling
+        fetchStatus();
+
+        // Cleanup function
+        return () => {
+            isMounted = false;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
+    }, [data.executionId, executionState.status, getExecutionStatus, getResult]);
 
     // Handler for text input changes
     const handleInputChange = useCallback(
@@ -75,39 +182,73 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
         [id, updateNodeData]
     );
 
+    // Validate Python code
+    const validatePythonCode = useCallback((code: string): boolean => {
+        if (!code || code.trim() === '') return false;
+
+        // Simple syntax checks (could be expanded)
+        const syntaxErrors = [
+            { pattern: /^\s*import\s+$/, message: "Incomplete import statement" },
+            { pattern: /\bdef\s+[^\(]*$/, message: "Incomplete function definition" },
+            { pattern: /[\(\[\{]\s*$/, message: "Unclosed brackets" }
+        ];
+
+        for (const { pattern } of syntaxErrors) {
+            if (code.match(pattern)) return false;
+        }
+
+        return true;
+    }, []);
+
     // Handle execute code button click
     const handleExecuteCode = useCallback(async () => {
-        if (!data.code) return;
+        if (!data.code || !validatePythonCode(data.code)) {
+            dispatch({ type: 'EXECUTION_ERROR', error: 'Invalid Python code' });
+            return;
+        }
 
-        setIsExecuting(true);
-        setStatus('running');
+        dispatch({ type: 'START_EXECUTION' });
 
         try {
             const executionId = await executeCode(data.code);
             updateNodeData(id, { executionId });
         } catch (error) {
-            console.error('Error executing code:', error);
-            setStatus('error');
-            setIsExecuting(false);
+            dispatch({ 
+                type: 'EXECUTION_ERROR', 
+                error: error instanceof Error ? error.message : 'Error executing code' 
+            });
         }
-    }, [data.code, executeCode, id, updateNodeData]);
+    }, [data.code, executeCode, id, updateNodeData, validatePythonCode]);
 
     // Handle stop execution button click
-    const handleStopExecution = useCallback(() => {
+    const handleStopExecution = useCallback(async () => {
         if (!data.executionId) return;
 
-        stopExecution(data.executionId);
-        setIsExecuting(false);
-        setStatus('idle');
+        try {
+            await stopExecution(data.executionId);
+            dispatch({ type: 'STOP_EXECUTION' });
+        } catch (error) {
+            console.error('Error stopping execution:', error);
+            // Even if there's an error stopping, update UI to indicate it's no longer running
+            dispatch({ type: 'STOP_EXECUTION' });
+        }
     }, [data.executionId, stopExecution]);
 
-    // Prevent event propagation to parent elements
+    // Refresh bridge status
+    const handleRefreshBridgeStatus = useCallback(async () => {
+        try {
+            await refreshBridgeStatus();
+        } catch (error) {
+            console.error('Error refreshing bridge status:', error);
+        }
+    }, [refreshBridgeStatus]);
+
+    // Prevent event propagation
     const stopPropagation = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
     }, []);
 
-    // Get the result from the context if available
-    const result = data.executionId ? executionResults[data.executionId] : null;
+    const { status, isExecuting, result, errorMessage } = executionState;
 
     return (
         <>
@@ -126,6 +267,8 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
             <Card
                 sx={{
                     minWidth: 350,
+                    width: data.dimensions?.width || 'auto',
+                    height: data.dimensions?.height || 'auto',
                     background: 'linear-gradient(135deg, rgba(25, 32, 56, 0.8), rgba(15, 40, 35, 0.9))',
                     border: selected ? '1px solid rgba(76, 175, 80, 0.7)' : '1px solid rgba(76, 175, 80, 0.3)',
                     borderRadius: '8px',
@@ -189,6 +332,46 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                 />
 
                 <CardContent sx={{ padding: '10px 16px !important' }}>
+                    {!isPythonBridgeAvailable && (
+                        <Box sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 1,
+                            mb: 1,
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            borderRadius: '4px'
+                        }}>
+                            <Typography variant="caption" color="error" sx={{ display: 'flex', alignItems: 'center' }}>
+                                {checkingBridgeStatus ? (
+                                    <>
+                                        <CircularProgress size={12} color="error" sx={{ mr: 1 }} />
+                                        Checking Python bridge...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ErrorOutlineIcon fontSize="small" sx={{ mr: 1 }} />
+                                        Python bridge unavailable
+                                    </>
+                                )}
+                            </Typography>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                startIcon={<RefreshIcon />}
+                                onClick={(e) => {
+                                    stopPropagation(e);
+                                    handleRefreshBridgeStatus();
+                                }}
+                                disabled={checkingBridgeStatus}
+                                className="nodrag"
+                                onMouseDown={stopPropagation}
+                            >
+                                Refresh
+                            </Button>
+                        </Box>
+                    )}
                     {/* Header */}
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, justifyContent: 'space-between' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -208,7 +391,8 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                             <Chip
                                 size="small"
                                 label={status}
-                                color={status === 'completed' ? 'success' : status === 'error' ? 'error' : 'primary'}
+                                color={(status === 'completed' && result?.success) ? 'success' :
+                                    (status === 'error' || (result && !result.success)) ? 'error' : 'primary'}
                                 icon={
                                     status === 'running' ? <CircularProgress size={16} color="inherit" /> :
                                         status === 'completed' ? <CheckCircleOutlineIcon /> :
@@ -270,7 +454,7 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                                 stopPropagation(e);
                                 handleExecuteCode();
                             }}
-                            disabled={isExecuting || !data.code}
+                            disabled={isExecuting || !data.code || !isPythonBridgeAvailable}
                             className="nodrag"
                             onMouseDown={stopPropagation}
                             sx={{ width: '48%' }}
@@ -295,13 +479,13 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                     </Box>
 
                     {/* Execution Results */}
-                    {result && (
+                    {(result || errorMessage) && (
                         <Box
                             sx={{
                                 p: 1,
                                 backgroundColor: 'rgba(15, 20, 25, 0.7)',
                                 borderRadius: '4px',
-                                borderLeft: `4px solid ${result.success ? '#4CAF50' : '#F44336'}`,
+                                borderLeft: `4px solid ${(result && result.success && !errorMessage) ? '#4CAF50' : '#F44336'}`,
                                 maxHeight: '150px',
                                 overflowY: 'auto',
                                 fontFamily: '"Roboto Mono", monospace',
@@ -314,16 +498,16 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                             onMouseDown={stopPropagation}
                             onClick={stopPropagation}
                         >
-                            {result.error ? (
+                            {(errorMessage || (result && result.error)) ? (
                                 <>
                                     <Typography color="error" variant="caption" sx={{ display: 'block', mb: 0.5 }}>
                                         Error:
                                     </Typography>
                                     <Box component="pre" sx={{ m: 0, color: '#F44336' }}>
-                                        {result.error}
+                                        {errorMessage || (result && result.error) || 'Unknown error'}
                                     </Box>
                                 </>
-                            ) : (
+                            ) : result && (
                                 <>
                                     <Typography color="success.light" variant="caption" sx={{ display: 'block', mb: 0.5 }}>
                                         Output:
@@ -333,9 +517,11 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                                     </Box>
                                 </>
                             )}
-                            <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#AAAAAA' }}>
-                                Execution time: {result.execution_time.toFixed(2)}s
-                            </Typography>
+                            {result && (
+                                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#AAAAAA' }}>
+                                    Execution time: {(result.execution_time !== undefined ? result.execution_time.toFixed(2) : '0.00')}s
+                                </Typography>
+                            )}
                         </Box>
                     )}
                 </CardContent>

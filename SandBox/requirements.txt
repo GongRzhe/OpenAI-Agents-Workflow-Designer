@@ -17,3 +17,8 @@ python-dotenv>=1.0.1
 
 # Security for code execution
 psutil>=5.9.0
+
+
+pytest==8.3.5
+pytest-asyncio==0.26.0
+pytest-mock==3.14.0
