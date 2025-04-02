@@ -29,27 +29,42 @@ export interface PythonCodeNodeData {
 
 const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isConnectable, selected }) => {
     const { updateNodeData, resizeNode } = useNodeData();
-    const { 
-        executeCode, 
-        stopExecution, 
-        getExecutionStatus, 
-        getResult, 
-        isPythonBridgeAvailable, 
+    const {
+        executeCode,
+        stopExecution,
+        getExecutionStatus,
+        getResult,
+        isPythonBridgeAvailable,
         checkingBridgeStatus,
-        refreshBridgeStatus 
+        refreshBridgeStatus
     } = usePythonExecution();
-    
+
     const [isExecuting, setIsExecuting] = useState(false);
     const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [result, setResult] = useState<ExecutionResult | null>(null);
     const [errorMessage, setErrorMessage] = useState<string>('');
     const latestExecutionIdRef = useRef(data.executionId);
+    const executionCompletedRef = useRef(false);
+    const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
+
     
+    const forceUpdate = useCallback(() => {
+        setForceUpdateCounter(prev => prev + 1);
+    }, []);
+
+    // useEffect(() => {
+    //     latestExecutionIdRef.current = data.executionId;
+    // }, [data.executionId]);
+
     useEffect(() => {
-        latestExecutionIdRef.current = data.executionId;
+        if (data.executionId) {
+            latestExecutionIdRef.current = data.executionId;
+            executionCompletedRef.current = false; // Reset completed state
+        }
     }, [data.executionId]);
 
-    // Update status based on executionId
+
+
     useEffect(() => {
         if (!data.executionId) {
             setStatus('idle');
@@ -64,72 +79,77 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
     }, [data.executionId]);
 
     // Use getResult properly
+
     useEffect(() => {
-        if (!data.executionId || status !== 'running') return;
-        
+        // Don't start polling if not running or no ID
+        if (!data.executionId || status !== 'running' || executionCompletedRef.current) {
+            return;
+        }
+
         let isMounted = true;
         let timeoutId: ReturnType<typeof setTimeout> | null = null;
         const startTime = Date.now();
-        const MAX_POLLING_TIME = 60000; // Increase to 60 seconds max polling
-        
+        const MAX_POLLING_TIME = 60000;
+
         const fetchResult = async () => {
-          if (!isMounted || !data.executionId) return;
-          
-          // Force stop polling after MAX_POLLING_TIME
-          if (Date.now() - startTime > MAX_POLLING_TIME) {
-            console.log(`Execution ${data.executionId} timed out after ${MAX_POLLING_TIME / 1000} seconds`);
-            if (isMounted) {
-              setIsExecuting(false);
-              setStatus('error');
-              setErrorMessage('Execution exceeded maximum time limit');
-            }
-            return;
-          }
-          
-          try {
-            // First check status to avoid redundant result fetching
-            const currentStatus = await getExecutionStatus(data.executionId);
-            
-            // Only fetch result if not running (either completed or error)
-            if (currentStatus !== 'running') {
-              const executionResult = await getResult(data.executionId);
-              console.log('Received execution result:', executionResult);
-              
-              if (isMounted) {
-                setResult(executionResult);
-                setStatus(currentStatus);
-                setIsExecuting(false);
-                
-                // Add this line to clear error message on success
-                if (executionResult.success) {
-                  setErrorMessage('');
+            if (!isMounted || !data.executionId) return;
+
+            try {
+                // First check status
+                const currentStatus = await getExecutionStatus(data.executionId);
+                console.log(`Current status for ${data.executionId}: ${currentStatus}`);
+
+                // Only fetch result if not running (either completed or error)
+                if (currentStatus !== 'running') {
+                    const executionResult = await getResult(data.executionId);
+                    console.log('Received execution result:', executionResult);
+
+                    if (isMounted) {
+                        // Use a synchronized batch update
+                        await Promise.resolve(); // Micro-task to ensure DOM update
+                        setResult(executionResult);
+                        setStatus(currentStatus);
+                        setIsExecuting(false);
+
+                        // Force component to re-render after state updates
+                        forceUpdate();
+
+                        // Add this line to clear error message on success
+                        if (executionResult.success) {
+                            setErrorMessage('');
+                        }
+
+                        // Early return to avoid setting another timeout
+                        return;
+                    }
                 }
-              }
-              return; // No need to schedule another check
+
+                // If still running AND component is still mounted, schedule next check
+                if (isMounted) {
+                    timeoutId = setTimeout(fetchResult, 1000);
+                }
+            } catch (error) {
+                console.error('Error fetching execution result:', error);
+                if (isMounted) {
+                    setStatus('error');
+                    setIsExecuting(false);
+                    setErrorMessage('Error checking execution status');
+                    forceUpdate(); // Ensure UI updates on error too
+                }
             }
-            
-            // If still running, schedule next check with shorter intervals
-            if (isMounted) {
-              timeoutId = setTimeout(fetchResult, 1000); // Check every second
-            }
-          } catch (error) {
-            console.error('Error fetching execution result:', error);
-            if (isMounted) {
-              setStatus('error');
-              setIsExecuting(false);
-              setErrorMessage('Error checking execution status');
-            }
-          }
         };
-        
+
         // Initial check
         fetchResult();
-        
+
         return () => {
-          isMounted = false;
-          if (timeoutId) clearTimeout(timeoutId);
+            console.log('Cleaning up polling useEffect');
+            isMounted = false;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         };
-      }, [data.executionId, status, getExecutionStatus, getResult]);
+    }, [data.executionId, status, getExecutionStatus, getResult]);
 
     // Handler for text input changes
     const handleInputChange = useCallback(
@@ -139,7 +159,7 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
         },
         [id, updateNodeData]
     );
-    
+
     const validatePythonCode = useCallback((code: string): boolean => {
         if (!code || code.trim() === '') return false;
 
@@ -170,13 +190,14 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
         setErrorMessage('');
         setIsExecuting(true);
         setStatus('running');
+        executionCompletedRef.current = false; // Reset completed state
 
         try {
             const executionId = await executeCode(data.code);
-            updateNodeData(id, { 
-                executionId, 
+            updateNodeData(id, {
+                executionId,
                 hasError: false
-              });
+            });
         } catch (error) {
             handleExecutionError(error, 'executing code');
         }
@@ -271,6 +292,18 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                     },
                 }}
             >
+
+                {data.executionId && (
+                    <Box sx={{ mb: 1, fontSize: '0.7rem', color: '#aaa' }}>
+                        <Typography variant="caption">
+                            Execution ID: {data.executionId.substring(0, 8)}... |
+                            Status: {status} |
+                            isExecuting: {isExecuting.toString()} |
+                            Has Result: {result ? 'Yes' : 'No'}
+                        </Typography>
+                    </Box>
+                )}
+
                 {/* Input Handle (Left) */}
                 <Handle
                     type="target"
@@ -325,9 +358,9 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                                     </>
                                 )}
                             </Typography>
-                            <Button 
-                                size="small" 
-                                variant="outlined" 
+                            <Button
+                                size="small"
+                                variant="outlined"
                                 color="error"
                                 startIcon={<RefreshIcon />}
                                 onClick={(e) => {
@@ -361,7 +394,7 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                             <Chip
                                 size="small"
                                 label={status}
-                                color={(status === 'completed' && result?.success) ? 'success' : 
+                                color={(status === 'completed' && result?.success) ? 'success' :
                                     (status === 'error' || (result && !result.success)) ? 'error' : 'primary'}
                                 icon={
                                     status === 'running' ? <CircularProgress size={16} color="inherit" /> :

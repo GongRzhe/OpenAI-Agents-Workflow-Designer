@@ -146,14 +146,70 @@ export const getExecutionResult = async (executionId: string): Promise<Execution
             const errorText = await response.text();
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
-        console.log('API response for execution result:', await response.json());
 
-        return await response.json();
+        // Parse JSON once and store the result
+        const result = await response.json();
+        console.log('API response for execution result:', result);
+        
+        return result;
     } catch (error) {
         return {
             success: false,
             output: '',
             error: error instanceof Error ? error.message : 'Unknown error fetching execution result',
+            execution_time: 0,
+        };
+    }
+};
+
+export const executePythonCodeAndWaitForResult = async (code: string, timeout: number = 30): Promise<ExecutionResult> => {
+    try {
+        // Start async execution
+        const execResponse = await executeCodeAsync(code, timeout);
+        const executionId = execResponse.execution_id;
+
+        if (!executionId) {
+            return {
+                success: false,
+                output: '',
+                error: 'No execution ID received',
+                execution_time: 0,
+            };
+        }
+
+        // Poll for completion
+        let completed = false;
+        const maxAttempts = 30; // Adjust based on your timeout needs
+
+        for (let i = 0; i < maxAttempts; i++) {
+            const status = await getExecutionStatus(executionId);
+            console.log(`Status check ${i + 1}: ${status}`);
+
+            if (status === 'completed' || status === 'error') {
+                completed = true;
+                break;
+            }
+
+            // Wait before checking again
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        if (!completed) {
+            return {
+                success: false,
+                output: '',
+                error: 'Execution did not complete in the expected time',
+                execution_time: timeout,
+            };
+        }
+
+        // Get the result once completed
+        return await getExecutionResult(executionId);
+    } catch (error) {
+        return {
+            success: false,
+            output: '',
+            error: error instanceof Error ? error.message : 'Unknown error executing Python code',
             execution_time: 0,
         };
     }

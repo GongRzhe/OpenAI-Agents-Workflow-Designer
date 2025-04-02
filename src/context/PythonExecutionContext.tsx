@@ -6,7 +6,8 @@ import {
   getExecutionStatus as getBridgeExecutionStatus,
   getExecutionResult,
   checkPythonBridgeStatus,
-  ExecutionStatus as BridgeExecutionStatus
+  ExecutionStatus as BridgeExecutionStatus,
+  executePythonCodeAndWaitForResult
 } from '../utils/pythonBridge';
 
 // Define types
@@ -85,7 +86,7 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
         return executionId;
       } else {
         // For larger code or code with asyncio, execute asynchronously
-        const result = await executeCodeAsync(code);
+        const result = await executePythonCodeAndWaitForResult(code);
         const executionId = result.execution_id;
 
         if (!executionId) {
@@ -304,7 +305,7 @@ const getResult = useCallback(async (executionId: string): Promise<ExecutionResu
 
     return errorResult;
   }
-}, [executionResults, canceledExecutions, getExecutionResult]);
+}, [executionResults, canceledExecutions]);
 
   return (
     <PythonExecutionContext.Provider
