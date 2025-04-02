@@ -265,6 +265,45 @@ if (newTypeNodes.length > 0) {
 - Use consistent spacing and padding
 - Keep labels clear and concise
 
+### 4.4 Text Contrast and Visibility
+
+- Ensure all text elements have proper contrast against dark backgrounds
+- For input fields, apply styling to both the label and input text:
+  ```typescript
+  sx={{
+    '& .MuiInputBase-input': {
+      color: '#f6f8ff',  // Light color for input text
+    },
+    '& .MuiInputLabel-root': {
+      color: '#6464FF',  // Accent color for labels
+    },
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: 'rgba(100, 100, 255, 0.3)',
+    },
+  }}
+  ```
+- For dropdown menus and select components:
+  ```typescript
+  sx={{
+    '& .MuiSelect-select': {
+      color: '#f6f8ff',  // Light color for selected value
+    },
+    '& .MuiSvgIcon-root': {
+      color: '#6464FF',  // Accent color for dropdown icon
+    }
+  }}
+  ```
+- Apply distinct colors to menu items for contrast with the dropdown background:
+  ```typescript
+  <MenuItem value="option" sx={{ color: '#192038' }}>Option</MenuItem>
+  ```
+- Use text shadows to improve readability of light text on dark backgrounds:
+  ```typescript
+  textShadow: '0 0 5px rgba(100, 100, 255, 0.5)'
+  ```
+- Ensure sufficient contrast ratio (at least 4.5:1) for all text elements
+- Test your node with different screen sizes and resolutions to verify text readability
+
 ## 5. State Management
 
 ### 5.1 Data Structure

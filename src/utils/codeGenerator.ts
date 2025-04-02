@@ -1,4 +1,4 @@
-// Updated codeGenerator.ts to support Python code nodes
+// Updated codeGenerator.ts to support Python code nodes and MCP servers
 import { Node, Edge } from 'reactflow';
 
 // Helper function to sanitize names for Python variables/functions
@@ -9,55 +9,69 @@ const sanitizeName = (name: string | undefined): string => {
 
 // Helper to parse parameters string into a Python function signature string
 const parseParameters = (paramsStr: string | undefined): string => {
-    if (!paramsStr) return '';
-    // Example input: "city: str, count: int"
-    // Example output: "city: str, count: int" (already valid)
-    // Add more robust parsing if needed
-    return paramsStr;
+  if (!paramsStr) return '';
+  // Example input: "city: str, count: int"
+  // Example output: "city: str, count: int" (already valid)
+  // Add more robust parsing if needed
+  return paramsStr;
 };
 
 // Helper to format the return type hint
 const formatReturnType = (returnType: string | undefined): string => {
-    if (!returnType || returnType.toLowerCase() === 'none') return 'None';
-    // Basic types are usually fine, could add mapping for complex types if needed
-    return returnType;
+  if (!returnType || returnType.toLowerCase() === 'none') return 'None';
+  // Basic types are usually fine, could add mapping for complex types if needed
+  return returnType;
 };
 
 export const generatePythonCode = (nodes: Node[], edges: Edge[]): string => {
-  let code = `import asyncio
-from agents import Agent, Runner, function_tool
-from pydantic import BaseModel # Assuming pydantic might be needed for output_type
+  let code = `from agents import Agent, Runner
+import asyncio
+
 from dotenv import load_dotenv
-
 load_dotenv()
-# --- Generated Pydantic Models (if any) ---
-# TODO: Add logic to generate Pydantic models based on Agent output_type
-
 `;
 
   const functionToolNodes = nodes.filter((node) => node.type === 'functionTool');
   const agentNodes = nodes.filter((node) => node.type === 'agent');
   const runnerNodes = nodes.filter((node) => node.type === 'runner');
   const pythonCodeNodes = nodes.filter((node) => node.type === 'pythonCode');
+  const mcpNodes = nodes.filter((node) => node.type === 'mcp');
 
-  // --- Python Code Nodes ---
-  if (pythonCodeNodes.length > 0) {
-    code += "\n# --- Custom Python Code ---\n";
-    pythonCodeNodes.forEach((node) => {
-      const nodeName = sanitizeName(node.data.name || `python_node_${node.id}`);
-      const nodeCode = node.data.code || '# Empty code block';
-
-      code += `\n# ${node.data.name || 'Unnamed Python Node'}\n`;
-      
-      // Indent the code properly
-      const indentedCode = nodeCode.split('\n').map((line: string) => `    ${line}`).join('\n');
-      code += indentedCode + '\n';
-    });
+  // If we have MCP nodes, add the imports
+  if (mcpNodes.length > 0) {
+    code += `from agents.mcp import MCPServer, MCPServerStdio, MCPServerSse\n`;
   }
 
-  // --- Function Tool Definitions ---
+  // Add imports for function_tool if needed
   if (functionToolNodes.length > 0) {
-    code += "\n# --- Function Tool Definitions ---\n";
+    code += `from agents import function_tool\n`;
+  }
+
+  // Add additional imports based on node types
+  if (runnerNodes.some(node => node.data.trace) || mcpNodes.length > 0) {
+    code += `from agents import gen_trace_id, trace\n`;
+  }
+
+  // Add Pydantic import if any agent has structured output_type
+  if (agentNodes.some(node => node.data.output_type)) {
+    code += `from pydantic import BaseModel\n`;
+  }
+
+  code += `\n`;
+
+  // First define Python code nodes if any
+  if (pythonCodeNodes.length > 0) {
+    code += "# --- Custom Python Code ---\n";
+    pythonCodeNodes.forEach((node) => {
+      const nodeCode = node.data.code || '# Empty code block';
+      code += `\n# ${node.data.name || 'Unnamed Python Node'}\n${nodeCode}\n`;
+    });
+    code += `\n`;
+  }
+
+  // Second define function tools
+  if (functionToolNodes.length > 0) {
+    code += "# --- Function Tool Definitions ---\n";
     functionToolNodes.forEach((node) => {
       const funcData = node.data;
       const funcName = sanitizeName(funcData.name);
@@ -68,111 +82,301 @@ load_dotenv()
       code += `
 @function_tool
 def ${funcName}(${params}) -> ${returnType}:
-${implementation.split('\n').map((line: string) => `    ${line}`).join('\n')}
+${implementation}
 `;
     });
+    code += `\n`;
   }
 
-  // --- Agent Definitions ---
-   if (agentNodes.length > 0) {
-    code += "\n# --- Agent Definitions ---\n";
-    agentNodes.forEach((node) => {
-        const agentData = node.data;
-        const agentVarName = sanitizeName(agentData.name) || `agent_${node.id}`;
-        const agentName = agentData.name || 'Unnamed Agent';
-        const instructions = agentData.instructions || 'No instructions provided.';
-        const handoffDesc = agentData.handoff_description;
+  // Generate MCP Server definitions if any
+  if (mcpNodes.length > 0) {
+    code += "# --- MCP Server Definitions ---\n";
 
-        // Find connected tools
-        const toolEdges = edges.filter(edge => edge.target === node.id && edge.targetHandle === 'd'); // Agent is target, handle 'd'
-        const toolSourceNodeIds = toolEdges.map(edge => edge.source);
-        const connectedToolNodes = functionToolNodes.filter(toolNode => toolSourceNodeIds.includes(toolNode.id));
-        const toolNames = connectedToolNodes.map(toolNode => sanitizeName(toolNode.data.name));
+    mcpNodes.forEach((node, index) => {
+      const mcpData = node.data;
+      const mcpVarName = sanitizeName(mcpData.name) || `mcp_server_${index}`;
+      const serverType = mcpData.serverType || 'custom';
 
-        // Find connected handoff agents (Agent -> Agent)
-        const handoffEdges = edges.filter(edge => edge.source === node.id && edge.sourceHandle === 'b'); // This agent is source, handle 'b'
-        const handoffTargetNodeIds = handoffEdges.map(edge => edge.target);
-        const connectedHandoffAgents = agentNodes.filter(agentNode => handoffTargetNodeIds.includes(agentNode.id));
-        const handoffNames = connectedHandoffAgents.map(agentNode => sanitizeName(agentNode.data.name) || `agent_${agentNode.id}`);
-
-        code += `\n${agentVarName} = Agent(\n`;
-        code += `    name="${agentName}",\n`;
-        code += `    instructions="""${instructions}""",\n`;
-        if (handoffDesc) {
-            code += `    handoff_description="${handoffDesc}",\n`;
+      if (serverType === 'git') {
+        code += `${mcpVarName} = MCPServerStdio(\n`;
+        code += `    name="${mcpData.name || `Git MCP Server ${index}`}",\n`;
+        if (mcpData.cacheToolsList) {
+          code += `    cache_tools_list=True,\n`;
         }
-        if (toolNames.length > 0) {
-            code += `    tools=[${toolNames.join(', ')}],\n`;
+        code += `    params={\n`;
+        code += `        "command": "uvx",\n`;
+        code += `        "args": ["mcp-server-git"],\n`;
+        code += `    },\n`;
+        code += `)\n\n`;
+      } else if (serverType === 'filesystem') {
+        code += `${mcpVarName} = MCPServerStdio(\n`;
+        code += `    name="${mcpData.name || `Filesystem MCP Server ${index}`}",\n`;
+        if (mcpData.cacheToolsList) {
+          code += `    cache_tools_list=True,\n`;
         }
-        if (handoffNames.length > 0) {
-            code += `    handoffs=[${handoffNames.join(', ')}],\n`;
+        code += `    params={\n`;
+        code += `        "command": "npx",\n`;
+        code += `        "args": ["-y", "@modelcontextprotocol/server-filesystem", "${mcpData.directory || '.'}"],\n`;
+        code += `    },\n`;
+        code += `)\n\n`;
+      } else { // custom
+        code += `${mcpVarName} = MCPServerStdio(\n`;
+        code += `    name="${mcpData.name || `Custom MCP Server ${index}`}",\n`;
+        if (mcpData.cacheToolsList) {
+          code += `    cache_tools_list=True,\n`;
         }
-        // TODO: Add output_type, guardrails etc.
-        code += `)\n`;
+        code += `    params={\n`;
+        code += `        "command": "${mcpData.command || 'npx'}",\n`;
+        code += `        "args": [${(mcpData.args || '').split(',').map((arg: string) => `"${arg.trim()}"`).join(', ')}],\n`;
+        code += `    },\n`;
+        code += `)\n\n`;
+      }
     });
   }
 
-  // --- Runner Execution ---
-  if (runnerNodes.length > 0) {
-    code += "\n# --- Runner Execution ---\n";
-    let needsAsync = false;
+  // Analyze handoffs to determine dependency order
+  const handoffMap = new Map();
 
-    runnerNodes.forEach((node, index) => {
-        const runnerData = node.data;
-        const runnerInput = runnerData.input || 'Default input';
-        const isAsync = runnerData.isAsync ?? true; // Default to async
+  // Find all handoff connections
+  edges.forEach(edge => {
+    if (edge.sourceHandle === 'b') { // Bottom handle = handoff
+      const sourceId = edge.source;
+      const targetId = edge.target;
 
-        // Find the agent connected to this runner
-        const connectedAgentEdge = edges.find(edge => edge.target === node.id && edge.targetHandle === 'a'); // Runner is target, handle 'a'
-        const sourceAgentNodeId = connectedAgentEdge?.source;
-        const connectedAgent = agentNodes.find(agentNode => agentNode.id === sourceAgentNodeId);
-        const agentVarName = connectedAgent ? (sanitizeName(connectedAgent.data.name) || `agent_${connectedAgent.id}`) : 'None # Error: No agent connected to runner';
+      if (!handoffMap.has(sourceId)) {
+        handoffMap.set(sourceId, []);
+      }
 
-        if (isAsync) {
-            needsAsync = true;
-            code += `\nasync def run_workflow_${index}():\n`;
-            code += `    print("--- Running Workflow ${index} (Async) ---")\n`;
-            code += `    result = await Runner.run(${agentVarName}, input="${runnerInput}")\n`; // TODO: Add context if implemented
-            code += `    print("Final Output:", result.final_output)\n`;
-            code += `    return result\n`;
-        } else {
-            code += `\ndef run_workflow_${index}_sync():\n`;
-            code += `    print("--- Running Workflow ${index} (Sync) ---")\n`;
-            code += `    result = Runner.run_sync(${agentVarName}, input="${runnerInput}")\n`; // TODO: Add context if implemented
-            code += `    print("Final Output:", result.final_output)\n`;
-            code += `    return result\n`;
-        }
-    });
-
-    // Add main execution block if any async runners exist
-    if (needsAsync) {
-        code += `\nasync def main():\n`;
-        runnerNodes.forEach((node, index) => {
-            if (node.data.isAsync ?? true) {
-                code += `    await run_workflow_${index}()\n`;
-            } else {
-                 code += `    run_workflow_${index}_sync()\n`; // Still call sync functions from main async
-            }
-        });
-
-        code += `\nif __name__ == "__main__":\n`;
-        code += `    asyncio.run(main())\n`;
-    } else {
-        // If only sync runners, call them directly
-        code += `\nif __name__ == "__main__":\n`;
-         runnerNodes.forEach((node, index) => {
-             if (!(node.data.isAsync ?? true)) {
-                code += `    run_workflow_${index}_sync()\n`;
-            }
-         });
-         if (runnerNodes.every(node => !(node.data.isAsync ?? true))) {
-             code += `    pass # Add non-async execution calls here if needed\n`;
-         }
+      handoffMap.get(sourceId).push(targetId);
     }
-  } else {
-      code += "\n# No Runner node found. Add a Runner node and connect it to an Agent to execute the workflow.\n";
+  });
+
+  // Identify leaf nodes (agents with no handoffs to other agents)
+  const leafAgentIds = new Set(
+    agentNodes
+      .filter(node => !handoffMap.has(node.id))
+      .map(node => node.id)
+  );
+
+  // Sort agent nodes - first leaf nodes, then others
+  const sortedAgentNodes = [
+    ...agentNodes.filter(node => leafAgentIds.has(node.id)),
+    ...agentNodes.filter(node => !leafAgentIds.has(node.id))
+  ];
+
+  // Store defined agent variables for later reference
+  const agentVarMap = new Map();
+
+  // Define agent nodes in the sorted order
+  if (sortedAgentNodes.length > 0) {
+    code += "# --- Agent Definitions ---\n";
+
+    sortedAgentNodes.forEach((node) => {
+      const agentData = node.data;
+      const agentVarName = sanitizeName(agentData.name) || `agent_${node.id}`;
+      const agentName = agentData.name || 'Unnamed Agent';
+      const instructions = agentData.instructions || 'No instructions provided.';
+      const handoffDesc = agentData.handoff_description;
+
+      // Store the variable name for this agent
+      agentVarMap.set(node.id, agentVarName);
+
+      code += `${agentVarName} = Agent(\n`;
+      code += `    name="${agentName}",\n`;
+
+      if (instructions) {
+        code += `    instructions="""${instructions}""",\n`;
+      }
+
+      if (handoffDesc) {
+        code += `    handoff_description="${handoffDesc}",\n`;
+      }
+
+      // Add handoffs if this agent has any
+      const handoffTargetIds = handoffMap.get(node.id) || [];
+      const handoffVars = handoffTargetIds
+        .map((id: string) => agentVarMap.get(id))
+        .filter(Boolean); // Filter out undefined entries
+
+      if (handoffVars.length > 0) {
+        code += `    handoffs=[${handoffVars.join(', ')}],\n`;
+      }
+
+      // Add tools if any
+      const toolEdges = edges.filter(edge => edge.target === node.id && edge.targetHandle === 'd');
+      const toolSourceNodeIds = toolEdges.map(edge => edge.source);
+      const connectedToolNodes = functionToolNodes.filter(toolNode => toolSourceNodeIds.includes(toolNode.id));
+      const toolNames = connectedToolNodes.map(toolNode => sanitizeName(toolNode.data.name));
+
+      if (toolNames.length > 0) {
+        code += `    tools=[${toolNames.join(', ')}],\n`;
+      }
+
+      // Add MCP servers if any
+      const mcpEdges = edges.filter(edge => edge.target === node.id && edge.targetHandle === 'a');
+      const mcpSourceNodeIds = mcpEdges.map(edge => edge.source);
+      const connectedMcpNodes = mcpNodes.filter(mcpNode => mcpSourceNodeIds.includes(mcpNode.id));
+      const mcpServerNames = connectedMcpNodes.map(mcpNode =>
+        sanitizeName(mcpNode.data.name) || `mcp_server_${mcpNode.id}`
+      );
+
+      if (mcpServerNames.length > 0) {
+        code += `    mcp_servers=[${mcpServerNames.join(', ')}],\n`;
+      }
+
+      code += `)\n\n`;
+    });
   }
 
+  // Define runner execution code
+  if (runnerNodes.length > 0) {
+    code += "# --- Runner Execution ---\n";
+
+    code += `async def main():\n`;
+
+    // Generate trace ID if any runner has tracing enabled
+    if (runnerNodes.some(node => node.data.trace) || mcpNodes.length > 0) {
+      code += `    # Generate trace ID for debugging\n`;
+      code += `    trace_id = gen_trace_id()\n`;
+      code += `    print(f"View trace: https://platform.openai.com/traces/trace?trace_id={trace_id}\\n")\n\n`;
+    }
+
+    // Using async with blocks for MCP servers if present
+    if (mcpNodes.length > 0) {
+      // Create an async with block for each MCP server
+      mcpNodes.forEach((node, index) => {
+        const mcpData = node.data;
+        const mcpVarName = sanitizeName(mcpData.name) || `mcp_server_${index}`;
+
+        // We'll use multi-line string for indentation
+        code += `    # Use context manager for ${mcpData.name || 'MCP server'}\n`;
+        code += `    async with ${mcpVarName}:\n`;
+      });
+
+      // Add trace context manager if needed
+      if (runnerNodes.some(node => node.data.trace)) {
+        code += `        # Tracing for better debugging\n`;
+        code += `        with trace(workflow_name="MCP Workflow", trace_id=trace_id):\n`;
+
+        // Additional indentation for each runner
+        const indent = "            ";
+
+        runnerNodes.forEach((node, index) => {
+          const runnerData = node.data;
+          const runnerInput = runnerData.input || 'Default input';
+
+          // Find the agent connected to this runner
+          const connectedAgentEdge = edges.find(edge => edge.target === node.id && edge.targetHandle === 'a');
+          const sourceAgentNodeId = connectedAgentEdge?.source;
+          const connectedAgentVarName = sourceAgentNodeId ? agentVarMap.get(sourceAgentNodeId) : null;
+
+          if (connectedAgentVarName) {
+            code += `\n${indent}# Run workflow ${index}\n`;
+            code += `${indent}print("\\n" + "-" * 40)\n`;
+            code += `${indent}print(f"Running: ${runnerInput}")\n`;
+            code += `${indent}result = await Runner.run(starting_agent=${connectedAgentVarName}, input="${runnerInput}")\n`;
+            code += `${indent}print(result.final_output)\n`;
+          } else {
+            code += `\n${indent}# Warning: Runner not connected to any agent\n`;
+            code += `${indent}print("Runner not connected to any agent")\n`;
+          }
+        });
+      } else {
+        // Direct runner execution without trace
+        const indent = "        ";
+
+        runnerNodes.forEach((node, index) => {
+          const runnerData = node.data;
+          const runnerInput = runnerData.input || 'Default input';
+
+          // Find the agent connected to this runner
+          const connectedAgentEdge = edges.find(edge => edge.target === node.id && edge.targetHandle === 'a');
+          const sourceAgentNodeId = connectedAgentEdge?.source;
+          const connectedAgentVarName = sourceAgentNodeId ? agentVarMap.get(sourceAgentNodeId) : null;
+
+          if (connectedAgentVarName) {
+            code += `\n${indent}# Run workflow ${index}\n`;
+            code += `${indent}print("\\n" + "-" * 40)\n`;
+            code += `${indent}print(f"Running: ${runnerInput}")\n`;
+            code += `${indent}result = await Runner.run(starting_agent=${connectedAgentVarName}, input="${runnerInput}")\n`;
+            code += `${indent}print(result.final_output)\n`;
+          } else {
+            code += `\n${indent}# Warning: Runner not connected to any agent\n`;
+            code += `${indent}print("Runner not connected to any agent")\n`;
+          }
+        });
+      }
+    } else {
+      // Simpler case without MCP servers
+      if (runnerNodes.some(node => node.data.trace)) {
+        code += `    # Tracing for better debugging\n`;
+        code += `    with trace(workflow_name="Workflow Example", trace_id=trace_id):\n`;
+
+        const indent = "        ";
+
+        runnerNodes.forEach((node, index) => {
+          const runnerData = node.data;
+          const runnerInput = runnerData.input || 'Default input';
+
+          // Find the agent connected to this runner
+          const connectedAgentEdge = edges.find(edge => edge.target === node.id && edge.targetHandle === 'a');
+          const sourceAgentNodeId = connectedAgentEdge?.source;
+          const connectedAgentVarName = sourceAgentNodeId ? agentVarMap.get(sourceAgentNodeId) : null;
+
+          if (connectedAgentVarName) {
+            code += `\n${indent}# Run workflow ${index}\n`;
+            code += `${indent}print("\\n" + "-" * 40)\n`;
+            code += `${indent}print(f"Running: ${runnerInput}")\n`;
+            code += `${indent}result = await Runner.run(${connectedAgentVarName}, input="${runnerInput}")\n`;
+            code += `${indent}print(result.final_output)\n`;
+          } else {
+            code += `\n${indent}# Warning: Runner not connected to any agent\n`;
+            code += `${indent}print("Runner not connected to any agent")\n`;
+          }
+        });
+      } else {
+        // Simplest case - no MCP, no tracing
+        runnerNodes.forEach((node, index) => {
+          const runnerData = node.data;
+          const runnerInput = runnerData.input || 'Default input';
+
+          // Find the agent connected to this runner
+          const connectedAgentEdge = edges.find(edge => edge.target === node.id && edge.targetHandle === 'a');
+          const sourceAgentNodeId = connectedAgentEdge?.source;
+          const connectedAgentVarName = sourceAgentNodeId ? agentVarMap.get(sourceAgentNodeId) : null;
+
+          if (connectedAgentVarName) {
+            code += `    result = await Runner.run(${connectedAgentVarName}, "${runnerInput}")\n`;
+            code += `    print(result.final_output)\n\n`;
+          } else {
+            code += `    # Warning: Runner not connected to any agent\n`;
+            code += `    print("Runner not connected to any agent")\n\n`;
+          }
+        });
+      }
+    }
+
+    code += `if __name__ == "__main__":\n`;
+
+    // Check for required dependencies based on node types
+    if (mcpNodes.some(node => node.data.serverType === 'git')) {
+      code += `    # Check for uvx installation\n`;
+      code += `    import shutil\n`;
+      code += `    if not shutil.which("uvx"):\n`;
+      code += `        raise RuntimeError("uvx is not installed. Please install it with \`pip install uvx\`.")\n\n`;
+    }
+
+    if (mcpNodes.some(node => node.data.serverType === 'filesystem' || node.data.serverType === 'custom')) {
+      code += `    # Check for npx installation\n`;
+      code += `    import shutil\n`;
+      code += `    if not shutil.which("npx"):\n`;
+      code += `        raise RuntimeError("npx is not installed. Please install it with \`npm install -g npx\`.")\n\n`;
+    }
+
+    code += `    asyncio.run(main())\n`;
+  } else {
+    code += "\n# No Runner node found. Add a Runner node and connect it to an Agent to execute the workflow.\n";
+  }
 
   return code;
 };
@@ -180,17 +384,34 @@ ${implementation.split('\n').map((line: string) => `    ${line}`).join('\n')}
 // Add helper function to extract required dependencies from nodes
 export const extractDependenciesFromNodes = (nodes: Node[]): string[] => {
   const dependencies = new Set<string>(['openai-agents']);
-  
+
   // Extract from Python code nodes
   const pythonCodeNodes = nodes.filter((node) => node.type === 'pythonCode');
-  
+
+  // Check for MCP nodes
+  const mcpNodes = nodes.filter((node) => node.type === 'mcp');
+  if (mcpNodes.length > 0) {
+    // Add MCP-related dependencies
+    const hasGitServer = mcpNodes.some(node => node.data.serverType === 'git');
+    const hasFilesystemServer = mcpNodes.some(node => node.data.serverType === 'filesystem');
+
+    if (hasGitServer) {
+      dependencies.add('uvx');
+    }
+
+    if (hasFilesystemServer || mcpNodes.some(node => node.data.serverType === 'custom')) {
+      // Many custom MCP servers require npx
+      dependencies.add('npm');
+    }
+  }
+
   pythonCodeNodes.forEach(node => {
     const code = node.data.code || '';
-    
+
     // Simple regex to find imports
     const importRegex = /^(?:from|import)\s+([a-zA-Z0-9_]+)/gm;
     let match;
-    
+
     while ((match = importRegex.exec(code)) !== null) {
       const packageName = match[1];
       // Skip standard library modules and openai-agents which is already included
@@ -199,6 +420,6 @@ export const extractDependenciesFromNodes = (nodes: Node[]): string[] => {
       }
     }
   });
-  
+
   return Array.from(dependencies);
 };
