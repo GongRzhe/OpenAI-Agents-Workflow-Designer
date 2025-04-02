@@ -134,8 +134,8 @@ def test_execute_async_running():
     status_response = client.get(f"/status/{execution_id}")
     assert status_response.status_code == 200
     status_data = status_response.json()
-    assert status_data["status"] in ["running", "completed"]
-    # assert status_data["completed"] is False
+    assert status_data["status"] in ["running"]
+    assert status_data["completed"] is False
 
 def test_stop_execution():
     code = "import time; time.sleep(10)"

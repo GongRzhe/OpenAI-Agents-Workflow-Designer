@@ -103,93 +103,73 @@ class CodeExecutionProcess(multiprocessing.Process):
             
             # Send error result
             self.result_queue.put((False, "", stderr))
+
+
+def _terminate_process_and_children(pid):
+    """Helper function to terminate a process and all its children."""
+    try:
+        parent = psutil.Process(pid)
+        for child in parent.children(recursive=True):
+            try:
+                child.terminate()
+                child.wait(3)
+            except:
+                try:
+                    child.kill()
+                except:
+                    pass
         
+        parent.terminate()
+        parent.wait(3)
+        
+        # Force kill if still alive
+        if parent.is_running():
+            parent.kill()
+    except:
+        # Process might already be gone
+        pass    
 async def execute_python_code(code: str, timeout: int = 30, env_vars: dict = None) -> Tuple[bool, str, str]:
-    """
-    Execute Python code in a sandboxed environment with timeout.
-    
-    Args:
-        code: The Python code to execute
-        timeout: Maximum execution time in seconds
-        
-    Returns:
-        Tuple of (success, output, error)
-    """
-    # Sanitize the code
+    """Execute Python code in a sandboxed environment with timeout."""
+    # Sanitize code first
     try:
         sanitized_code = sanitize_code(code)
     except ValueError as e:
         return False, "", f"Code validation error: {str(e)}"
     
-    # Create a multiprocessing queue for the result
+    # Create queue and process
     result_queue = multiprocessing.Queue()
-    
-    # Create and start the execution process
     process = CodeExecutionProcess(sanitized_code, result_queue, env_vars)
     process.start()
-    
     pid = process.pid
     
     try:
-        # Wait for the result with timeout
+        # Wait for result with proper timeout handling
         start_time = time.time()
-        
-        # Use asyncio.sleep instead of blocking
         while process.is_alive() and time.time() - start_time < timeout:
             try:
-                # Check with a timeout to avoid blocking
                 success, output, error = result_queue.get(timeout=0.1)
                 
-                # Clean up
-                process.terminate()
-                process.join(1)
+                # Properly clean up process and any children
+                _terminate_process_and_children(pid)
                 
-                # Return results
                 return success, output, error
             except queue.Empty:
-                # Queue is empty, continue waiting
                 await asyncio.sleep(0.1)
         
-        # If we're here, it means timeout
+        # Handle timeout
         if process.is_alive():
-            # Try to terminate the process gracefully
-            process.terminate()
-            await asyncio.sleep(0.1)
-            
-            # If still alive, force kill
-            if process.is_alive():
-                if sys.platform != 'win32':  # Unix-like
-                    os.kill(pid, signal.SIGKILL)
-                else:  # Windows
-                    os.kill(pid, signal.SIGTERM)
-            
+            _terminate_process_and_children(pid)
             return False, "", f"Execution timed out after {timeout} seconds"
+            
     except Exception as e:
-        # Handle any unexpected errors
-        if process.is_alive():
-            process.terminate()
-            if sys.platform != 'win32':  # Unix-like
-                try:
-                    os.kill(pid, signal.SIGKILL)
-                except:
-                    pass
-            else:  # Windows
-                try:
-                    os.kill(pid, signal.SIGTERM)
-                except:
-                    pass
-        
+        # Handle unexpected errors
+        _terminate_process_and_children(pid)
         return False, "", f"Error running code: {str(e)}"
     
-    # If we get here, make sure process is terminated
-    if process.is_alive():
-        process.terminate()
-        process.join(1)
-    
-    # Look for results in queue before returning generic error
+    # Check queue one last time
     try:
         if not result_queue.empty():
-            return result_queue.get()
+            return result_queue.get(timeout=0.1)
     except:
         pass
     

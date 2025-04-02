@@ -18,6 +18,8 @@ import io
 # Import the executor module
 from executor import execute_python_code, get_installed_packages
 
+
+execution_lock = asyncio.Lock()
 app = FastAPI(title="OpenAI Agents Python Executor")
 
 # Add CORS middleware to allow requests from the frontend
@@ -67,17 +69,12 @@ async def get_server_status():
 @app.post("/execute", response_model=ExecutionResult)
 async def execute_code(execution: CodeExecution):
     """Execute Python code synchronously and return the results."""
-    # Set up environment variables if provided
-    env = os.environ.copy()
-    if execution.env_vars:
-        env.update(execution.env_vars)
-    
-    # Execute the code
+    # Execute the code with proper environment variables
     start_time = time.time()
     success, output, error = await execute_python_code(
         execution.code,
         timeout=execution.timeout,
-        env_vars=execution.env_vars
+        env_vars=execution.env_vars  # Pass this directly
     )
     execution_time = time.time() - start_time
     
@@ -89,29 +86,25 @@ async def execute_code(execution: CodeExecution):
         execution_time=execution_time
     )
 
+
 @app.post("/execute/async", response_model=AsyncExecutionResponse)
 async def execute_code_async(execution: AsyncExecutionRequest, background_tasks: BackgroundTasks):
     """Start asynchronous execution of Python code and return an execution ID."""
     # Generate a unique execution ID
     execution_id = str(uuid.uuid4())
     
-    # Store the execution with initial status
-    executions[execution_id] = {
-        "status": "running",
-        "output": "",
-        "error": None,
-        "execution_time": 0,
-        "start_time": time.time()
-    }
+    # Store the execution with initial status - initialize once with all fields
+    async with execution_lock:
+        executions[execution_id] = {
+            "status": "running",
+            "output": "",
+            "error": None,
+            "start_time": time.time(),
+            "execution_time": 0,
+            "completed_at": None
+        }
     
-    # For test purposes, make 'time.sleep' tasks wait a bit
-    if "time.sleep" in execution.code:
-        # Execute after a short delay to allow test to check running status
-        background_tasks.add_task(
-            asyncio.sleep, 0.1
-        )
-    
-    # Execute the code in the background
+    # Remove test-specific code and execute in background
     background_tasks.add_task(
         background_execute, 
         execution_id=execution_id,
@@ -119,51 +112,35 @@ async def execute_code_async(execution: AsyncExecutionRequest, background_tasks:
         timeout=execution.timeout
     )
     
-    # Return the execution ID
     return AsyncExecutionResponse(execution_id=execution_id)
 
 async def background_execute(execution_id: str, code: str, timeout: int):
     """Execute code in the background and store the result."""
-    # Set initial status to running
-    executions[execution_id] = {
-        "status": "running",
-        "output": "",
-        "error": None,
-        "start_time": time.time(),
-        "execution_time": 0,
-        "completed_at": None
-    }
-    
-    # Add a maximum execution time (e.g., 30 seconds)
-    MAX_EXECUTION_TIME = 30.0
-    
-    # For test code containing sleep, ensure we don't complete too quickly
-    if "time.sleep" in code:
-        # For test_execute_async_running
-        await asyncio.sleep(2.0)  # Ensure it's still running when test checks
-    
     try:
-        start_time = time.time()
+        # Get the start time safely
+        async with execution_lock:
+            if execution_id not in executions:
+                return  # Execution was removed
+            start_time = executions[execution_id]["start_time"]
         
-        # Create a task for execution
+        # Create task for execution with a single consistent timeout approach
         execution_task = asyncio.create_task(execute_python_code(code, timeout=timeout))
         
-        # Wait for execution with timeout
         try:
-            success, output, error = await asyncio.wait_for(
-                execution_task, 
-                timeout=min(timeout, MAX_EXECUTION_TIME)
-            )
+            success, output, error = await asyncio.wait_for(execution_task, timeout=timeout)
             execution_time = time.time() - start_time
             
-            # Update the execution record
-            executions[execution_id] = {
-                "status": "completed" if success else "error",
-                "output": output,
-                "error": error,
-                "execution_time": execution_time,
-                "completed_at": time.time()
-            }
+            # Update execution record safely
+            async with execution_lock:
+                if execution_id in executions:
+                    executions[execution_id] = {
+                        "status": "completed" if success else "error",
+                        "output": output,
+                        "error": error,
+                        "execution_time": execution_time,
+                        "start_time": start_time,
+                        "completed_at": time.time()
+                    }
         except asyncio.TimeoutError:
             # Handle timeout
             execution_task.cancel()
@@ -172,53 +149,95 @@ async def background_execute(execution_id: str, code: str, timeout: int):
             except asyncio.CancelledError:
                 pass
                 
-            # Update with timeout error
-            executions[execution_id] = {
-                "status": "error",
-                "output": "",
-                "error": f"Execution timed out after {MAX_EXECUTION_TIME} seconds",
-                "execution_time": time.time() - start_time,
-                "completed_at": time.time()
-            }
+            # Update with timeout error safely
+            async with execution_lock:
+                if execution_id in executions:
+                    executions[execution_id] = {
+                        "status": "error",
+                        "output": "",
+                        "error": f"Execution timed out after {timeout} seconds",
+                        "execution_time": time.time() - start_time,
+                        "start_time": start_time,
+                        "completed_at": time.time()
+                    }
     except Exception as e:
-        # Update the execution record with the error
-        executions[execution_id] = {
-            "status": "error",
-            "output": "",
-            "error": str(e),
-            "execution_time": time.time() - executions[execution_id]["start_time"],
-            "completed_at": time.time()
-        }
+        # Standardize error handling
+        async with execution_lock:
+            if execution_id in executions:
+                start_time = executions[execution_id].get("start_time", time.time())
+                executions[execution_id] = {
+                    "status": "error",
+                    "output": "",
+                    "error": str(e),
+                    "execution_time": time.time() - start_time,
+                    "start_time": start_time,
+                    "completed_at": time.time()
+                }
         
 @app.get("/status/{execution_id}")
 async def get_execution_status(execution_id: str):
     """Get the status of an asynchronous execution."""
-    if execution_id not in executions:
-        raise HTTPException(status_code=404, detail="Execution not found")
+    async with execution_lock:
+        if execution_id not in executions:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        # Create a copy to avoid race conditions
+        execution = executions[execution_id].copy()
     
-    # Return the execution status
+    # Get current status with appropriate fallback
+    current_status = execution.get("status", "unknown")
+    
+    # Calculate execution time with safety checks
+    if current_status != "running":
+        execution_time = execution.get("execution_time", 0)
+    else:
+        # Check if execution is stale (running for too long)
+        start_time = execution.get("start_time", time.time())
+        current_execution_time = time.time() - start_time
+        
+        # Handle stale executions
+        MAX_ALLOWED_RUNNING_TIME = 300  # 5 minutes
+        if current_execution_time > MAX_ALLOWED_RUNNING_TIME:
+            # Update the stale execution
+            async with execution_lock:
+                if execution_id in executions and executions[execution_id].get("status") == "running":
+                    executions[execution_id].update({
+                        "status": "error",
+                        "error": f"Execution automatically terminated after running for {MAX_ALLOWED_RUNNING_TIME} seconds",
+                        "execution_time": current_execution_time,
+                        "completed_at": time.time()
+                    })
+            current_status = "error"
+            execution_time = current_execution_time
+        else:
+            execution_time = current_execution_time
+    
+    # Determine completed flag based on terminal states
+    is_completed = current_status in ["completed", "error", "stopped"]
+    
     return {
-        "status": executions[execution_id]["status"],
-        "execution_time": executions[execution_id]["execution_time"] if executions[execution_id]["status"] != "running" else time.time() - executions[execution_id]["start_time"],
-        "completed": executions[execution_id]["status"] != "running"
+        "status": current_status,
+        "execution_time": execution_time,
+        "completed": is_completed
     }
 
 @app.get("/result/{execution_id}", response_model=ExecutionResult)
 async def get_execution_result(execution_id: str):
     """Get the result of an asynchronous execution."""
-    if execution_id not in executions:
-        raise HTTPException(status_code=404, detail="Execution not found")
+    async with execution_lock:
+        if execution_id not in executions:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        if executions[execution_id]["status"] == "running":
+            raise HTTPException(status_code=202, detail="Execution still in progress")
+        
+        execution = executions[execution_id].copy()
     
-    # If execution is still running, return status
-    if executions[execution_id]["status"] == "running":
-        raise HTTPException(status_code=202, detail="Execution still in progress")
-    
-    # Return the execution result
     return ExecutionResult(
-        success=executions[execution_id]["status"] == "completed",
-        output=executions[execution_id]["output"],
-        error=executions[execution_id]["error"],
-        execution_time=executions[execution_id]["execution_time"]
+        success=execution["status"] == "completed",
+        output=execution.get("output", ""),
+        error=execution.get("error"),
+        execution_time=execution.get("execution_time", 0)
     )
 
 @app.post("/stop/{execution_id}")
@@ -378,6 +397,27 @@ async def cleanup_old_executions():
     
     for execution_id in to_delete:
         del executions[execution_id]
+
+@app.on_event("startup")
+async def start_periodic_cleanup():
+    """Start periodic cleanup of old executions."""
+    asyncio.create_task(periodic_cleanup())
+
+async def periodic_cleanup():
+    """Periodically clean up old executions."""
+    while True:
+        await asyncio.sleep(300)  # Run every 5 minutes
+        
+        current_time = time.time()
+        async with execution_lock:
+            to_delete = [
+                execution_id 
+                for execution_id, execution in executions.items() 
+                if execution.get("completed_at", 0) < current_time - 3600  # 1 hour
+            ]
+            
+            for execution_id in to_delete:
+                del executions[execution_id]
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8888)
