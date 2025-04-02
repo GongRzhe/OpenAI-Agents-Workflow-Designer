@@ -39,6 +39,9 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
   // Add this ref to track retry attempts for each execution
   const executionRetries = useRef<Record<string, number>>({});
 
+  const [pendingExecutions, setPendingExecutions] = useState<Record<string, number>>({});
+  const [pollAttemptsMap, setPollAttemptsMap] = useState<Record<string, number>>({});
+
   // Check Python bridge status on component mount
   useEffect(() => {
     refreshBridgeStatus();
@@ -118,6 +121,38 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
         'running';
     }
     
+    // Prevent excessive polling for the same execution ID
+    const pendingCount = pendingExecutions[executionId] || 0;
+    if (pendingCount > 5) {
+      // Too many pending requests for this execution, return error
+      const errorResult: ExecutionResult = {
+        success: false,
+        output: '',
+        error: 'Execution timed out or server is not responding properly',
+        execution_time: 0
+      };
+      
+      setExecutionResults(prev => ({
+        ...prev,
+        [executionId]: errorResult
+      }));
+      
+      // Clear pending count
+      setPendingExecutions(prev => {
+        const updated = {...prev};
+        delete updated[executionId];
+        return updated;
+      });
+      
+      return 'error';
+    }
+    
+    // Track that we're checking this execution
+    setPendingExecutions(prev => ({
+      ...prev,
+      [executionId]: pendingCount + 1
+    }));
+    
     try {
       const status = await getExecutionStatus(executionId);
       
@@ -131,49 +166,28 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
           [executionId]: result
         }));
         
-        // Clear retry counter
-        if (executionRetries.current[executionId]) {
-          delete executionRetries.current[executionId];
-        }
+        // Clear pending count
+        setPendingExecutions(prev => {
+          const updated = {...prev};
+          delete updated[executionId];
+          return updated;
+        });
       }
       
       return status;
     } catch (error) {
       console.error('Error getting execution status:', error);
       
-      // Add this code to prevent endless polling for 202 responses
-      if (error && String(error).includes('202')) {
-        // Add retry count to state or use another method to track
-        const currentRetries = executionRetries.current[executionId] || 0;
-        executionRetries.current[executionId] = currentRetries + 1;
-        
-        // If we've tried 5 times and still getting 202, just mark as error
-        if (currentRetries >= 5) {
-          const errorResult: ExecutionResult = {
-            success: false,
-            output: '',
-            error: 'Execution timed out or server is not responding properly',
-            execution_time: 0
-          };
-          
-          setExecutionResults(prev => ({
-            ...prev,
-            [executionId]: errorResult
-          }));
-          
-          // Clear retry counter
-          delete executionRetries.current[executionId];
-          
-          return 'error';
-        }
-        
-        // If we haven't reached max retries, it's still running
-        return 'running';
-      }
+      // Clear pending count on error
+      setPendingExecutions(prev => {
+        const updated = {...prev};
+        delete updated[executionId];
+        return updated;
+      });
       
       return 'error';
     }
-  }, [executionResults]);
+  }, [executionResults, pendingExecutions]);
 
   // Get execution result
   const getResult = useCallback(async (executionId: string): Promise<ExecutionResult> => {
@@ -191,6 +205,29 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
         execution_time: 0
       };
     }
+    // Track polling attempts
+    const currentAttempts = pollAttemptsMap[executionId] || 0;
+    if (currentAttempts > 10) { // Limit to 10 attempts
+        const errorResult: ExecutionResult = {
+            success: false,
+            output: '',
+            error: 'Execution polling exceeded maximum attempts',
+            execution_time: 0
+        };
+        
+        setExecutionResults(prev => ({
+            ...prev,
+            [executionId]: errorResult
+        }));
+        
+        return errorResult;
+    }
+    
+    // Update attempt counter
+    setPollAttemptsMap(prev => ({
+        ...prev,
+        [executionId]: currentAttempts + 1
+    }));
     
     try {
       const result = await getExecutionResult(executionId);
@@ -201,10 +238,16 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
         [executionId]: result
       }));
       
-      // Clear retry counter
-      if (executionRetries.current[executionId]) {
-        delete executionRetries.current[executionId];
-      }
+      // // Clear retry counter
+      // if (executionRetries.current[executionId]) {
+      //   delete executionRetries.current[executionId];
+      // }
+      // Reset polling attempts on success
+      setPollAttemptsMap(prev => {
+        const updated = {...prev};
+        delete updated[executionId];
+        return updated;
+    });
       
       return result;
     } catch (error) {

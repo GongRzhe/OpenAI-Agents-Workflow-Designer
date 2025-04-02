@@ -29,7 +29,12 @@ const handleApiError = (error: any, defaultMessage: string): never => {
  */
 export const executePythonCode = async (code: string, timeout: number = 30): Promise<ExecutionResult> => {
     try {
-        console.log(code)
+        console.log("Executing code:", code.substring(0, 100) + "..."); // Log just the beginning
+        
+        // Add a timeout to the fetch request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout * 1000);
+        
         const response = await fetch(`${API_BASE_URL}/execute`, {
             method: 'POST',
             headers: {
@@ -39,7 +44,10 @@ export const executePythonCode = async (code: string, timeout: number = 30): Pro
                 code,
                 timeout,
             }),
+            signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -48,6 +56,16 @@ export const executePythonCode = async (code: string, timeout: number = 30): Pro
 
         return await response.json();
     } catch (error) {
+        // Proper type checking before accessing error.name
+        if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
+            return {
+                success: false,
+                output: '',
+                error: 'Request timed out. The server may be overloaded or unresponsive.',
+                execution_time: timeout,
+            };
+        }
+        
         return {
             success: false,
             output: '',

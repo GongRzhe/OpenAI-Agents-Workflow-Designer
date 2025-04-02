@@ -60,15 +60,30 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
     // Ensure proper interval cleanup by adding relevant dependencies
     useEffect(() => {
         if (!data.executionId || status !== 'running') return;
-
-        let isMounted = true; // Add this flag to prevent state updates after unmount
+    
+        let isMounted = true;
         let intervalId: ReturnType<typeof setTimeout> | null = null;
         const startTime = Date.now();
         const MAX_POLLING_TIME = 30000; // 30 seconds max polling
-
+        let pollCount = 0;
+        const MAX_POLL_COUNT = 30; // Maximum number of poll attempts
+    
         const checkStatus = async () => {
             if (!isMounted) return;
-
+            
+            // Limit the number of polling attempts
+            if (pollCount >= MAX_POLL_COUNT) {
+                console.log(`Execution ${data.executionId} exceeded maximum poll count (${MAX_POLL_COUNT})`);
+                if (isMounted) {
+                    setIsExecuting(false);
+                    setStatus('error');
+                }
+                if (intervalId) clearInterval(intervalId);
+                return;
+            }
+            
+            pollCount++;
+    
             // Force stop polling after MAX_POLLING_TIME
             if (Date.now() - startTime > MAX_POLLING_TIME) {
                 console.log(`Execution ${data.executionId} timed out after ${MAX_POLLING_TIME / 1000} seconds`);
@@ -79,12 +94,12 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                 if (intervalId) clearInterval(intervalId);
                 return;
             }
-
+    
             try {
                 const currentStatus = await getExecutionStatus(data.executionId!);
                 if (currentStatus !== 'running' && isMounted) {
                     setIsExecuting(false);
-
+    
                     // Critical: Clear the interval when status changes from running
                     if (intervalId) {
                         clearInterval(intervalId);
@@ -95,7 +110,7 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                 console.error('Error checking execution status:', error);
                 if (isMounted) {
                     setIsExecuting(false);
-
+    
                     // Also clear interval on error
                     if (intervalId) {
                         clearInterval(intervalId);
@@ -104,13 +119,13 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
                 }
             }
         };
-
+    
         // Initial check
         checkStatus();
-
-        // Then set interval
-        intervalId = setInterval(checkStatus, 1000);
-
+    
+        // Then set interval with increased delay to reduce load
+        intervalId = setInterval(checkStatus, 2000); // Change from 1000 to 2000 ms
+    
         return () => {
             isMounted = false;
             if (intervalId) clearInterval(intervalId);
