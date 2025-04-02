@@ -6,6 +6,8 @@ Thanks to AI master [AI超元域](https://www.youtube.com/watch?v=KQULGx6wjco) a
 
 ![OpenAI Agents Workflow Designer Interface](public/main.png)
 ![OpenAI Agents Workflow Designer Interface](public/CodeGen.png)
+![OpenAI Agents Workflow Designer Interface](public/running.png)
+![OpenAI Agents Workflow Designer Interface](public/complete.png)
 ![OpenAI Agents Workflow Designer Interface](public/import.png)
 ![OpenAI Agents Workflow Designer Interface](public/export.png)
 
