@@ -40,40 +40,81 @@ print("This will raise an error")
         print("\n" + "-"*50 + "\n")
         
         print("3. Testing asynchronous execution")
-        code = """
-import asyncio
-from agents import Agent, Runner, function_tool
-from pydantic import BaseModel # Assuming pydantic might be needed for output_type
-from dotenv import load_dotenv
-import os
-load_dotenv()
-print(os.getenv("OPENAI_API_KEY"))
-# --- Generated Pydantic Models (if any) ---
-# TODO: Add logic to generate Pydantic models based on Agent output_type
+        code ="""
+import json
+import time
 
+def fetch_mock_data():
 
-# --- Agent Definitions ---
+    return [
+        {"id": 1, "name": "Alice", "age": 25, "score": 90},
+        {"id": 2, "name": "Bob", "age": 30, "score": 85},
+        {"id": 3, "name": "Charlie", "age": 28, "score": 78}
+    ]
 
-assistant = Agent(
-    name="Assistant",
-    instructions="You are a helpful assistant",
-)
+def process_data(data):
 
-# --- Runner Execution ---
+    if not data:
+        return []
+    
+    records = []
+    for item in data:
+        records.append({
+            "id": item.get("id"),
+            "name": item.get("name"),
+            "age": item.get("age", 0),
+            "score": item.get("score", 0)
+        })
+    
+    return records
 
-async def run_workflow_0():
-    print("--- Running Workflow 0 (Async) ---")
-    result = await Runner.run(assistant, input="Write a haiku about recursion in programming.")
-    print("Final Output:", result.final_output)
-    return result
-
-async def main():
-    await run_workflow_0()
-
+def main():
+    print("Fetching mock data...")
+    data = fetch_mock_data()
+    processed_data = process_data(data)
+    
+    if processed_data:
+        print("Sample Data:", processed_data[:3])
+    
+    print("Script execution completed.")
+    
 if __name__ == "__main__":
-    asyncio.run(main())
-
+    main()
 """
+#         code = """
+# import asyncio
+# from agents import Agent, Runner, function_tool
+# from pydantic import BaseModel # Assuming pydantic might be needed for output_type
+# from dotenv import load_dotenv
+# import os
+# load_dotenv()
+# # print(os.getenv("OPENAI_API_KEY"))
+# # --- Generated Pydantic Models (if any) ---
+# # TODO: Add logic to generate Pydantic models based on Agent output_type
+
+
+# # --- Agent Definitions ---
+
+# assistant = Agent(
+#     name="Assistant",
+#     instructions="You are a helpful assistant",
+# )
+
+# # --- Runner Execution ---
+
+# async def run_workflow_0():
+#     print("--- Running Workflow 0 (Async) ---")
+#     result = await Runner.run(assistant, input="Write a haiku about recursion in programming.")
+#     print("Final Output:", result.final_output)
+#     return result
+
+# async def main():
+#     await run_workflow_0()
+
+# if __name__ == "__main__":
+#     asyncio.run(main())
+
+# """
         response = await client.post("/execute", json={
             "code": code,
             "timeout": 10,

@@ -63,8 +63,9 @@ class CodeExecutionProcess(multiprocessing.Process):
             stderr_capture = io.StringIO()
             
             with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-                local_namespace = {}
-                exec(self.code, {}, local_namespace)
+                # Create a single namespace for both globals and locals
+                namespace = {'__name__': '__main__'}
+                exec(self.code, namespace, namespace)
             
             stdout = stdout_capture.getvalue()
             stderr = stderr_capture.getvalue()

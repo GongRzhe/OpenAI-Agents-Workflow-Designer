@@ -162,7 +162,7 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
 
     // Prevent excessive polling for the same execution ID
     const pendingCount = pendingExecutions[executionId] || 0;
-  if (pendingCount > 30) {
+  if (pendingCount > 10) {
     // Too many pending requests for this execution
     setExecutionResults(prev => ({
       ...prev,
@@ -234,127 +234,77 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
   }, [executionResults, pendingExecutions, canceledExecutions]);
 
   // Get execution result
-  const getResult = useCallback(async (executionId: string): Promise<ExecutionResult> => {
-    // Check if we already have the result
-    if (executionResults[executionId]) {
-      return executionResults[executionId];
-    }
+  // In PythonExecutionContext.tsx, modify the getResult function:
 
-    // If marked as canceled, return canceled result
-    if (canceledExecutions.has(executionId)) {
-      return {
-        success: false,
-        output: 'Execution canceled by user',
-        error: 'Execution canceled',
-        execution_time: 0
-      };
-    }
+const getResult = useCallback(async (executionId: string): Promise<ExecutionResult> => {
+  // Check if we already have the result
+  if (executionResults[executionId]) {
+    return executionResults[executionId];
+  }
 
-    // For sync executions that somehow don't have a result
-    if (executionId.startsWith('sync-')) {
-      return {
-        success: false,
-        output: '',
-        error: 'Execution result not found',
-        execution_time: 0
-      };
-    }
+  // If marked as canceled, return canceled result
+  if (canceledExecutions.has(executionId)) {
+    return {
+      success: false,
+      output: 'Execution canceled by user',
+      error: 'Execution canceled',
+      execution_time: 0
+    };
+  }
 
-    // Track polling attempts
-    const currentAttempts = pollAttemptsMap[executionId] || 0;
-    if (currentAttempts > 10) { // Limit to 10 attempts
-      const errorResult: ExecutionResult = {
-        success: false,
-        output: '',
-        error: 'Execution polling exceeded maximum attempts',
-        execution_time: 0
-      };
+  // For sync executions that somehow don't have a result
+  if (executionId.startsWith('sync-')) {
+    return {
+      success: false,
+      output: '',
+      error: 'Execution result not found',
+      execution_time: 0
+    };
+  }
 
-      setExecutionResults(prev => ({
-        ...prev,
-        [executionId]: errorResult
-      }));
-
-      return errorResult;
-    }
-
-    // Update attempt counter
-    setPollAttemptsMap(prev => ({
+  try {
+    // Direct call to get the result without tracking polling attempts
+    const result = await getExecutionResult(executionId);
+    
+    // Log the received result for debugging
+    console.log('Received result from API:', result);
+    
+    // Store the result
+    setExecutionResults(prev => ({
       ...prev,
-      [executionId]: currentAttempts + 1
+      [executionId]: result
     }));
 
-    try {
-      const result = await getExecutionResult(executionId);
-
-      // Store the result
-      setExecutionResults(prev => ({
-        ...prev,
-        [executionId]: result
-      }));
-
-      // Reset polling attempts on success
-      setPollAttemptsMap(prev => {
-        const updated = { ...prev };
-        delete updated[executionId];
-        return updated;
-      });
-
-      return result;
-    } catch (error) {
-      console.error('Error getting execution result:', error);
-
-      // Add retry handling for 202 responses
-      if (error && String(error).includes('202')) {
-        const currentRetries = executionRetries.current[executionId] || 0;
-        executionRetries.current[executionId] = currentRetries + 1;
-
-        // If we've tried too many times, return an error
-        if (currentRetries >= 5) {
-          const errorResult: ExecutionResult = {
-            success: false,
-            output: '',
-            error: 'Execution timed out or server is not responding properly',
-            execution_time: 0
-          };
-
-          // Store the error result
-          setExecutionResults(prev => ({
-            ...prev,
-            [executionId]: errorResult
-          }));
-
-          // Clear retry counter
-          delete executionRetries.current[executionId];
-
-          return errorResult;
-        }
-
-        // If we haven't reached max retries, return a pending result
-        return {
-          success: false,
-          output: 'Execution in progress...',
-          error: 'Execution still running. Please wait.',
-          execution_time: 0
-        };
-      }
-
-      const errorResult: ExecutionResult = {
+    return result;
+  } catch (error) {
+    console.error('Error getting execution result:', error);
+    
+    // More specific error handling for 202 responses
+    if (error && String(error).includes('202')) {
+      return {
         success: false,
-        output: '',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        output: 'Execution in progress...',
+        error: 'Execution still running. Please wait.',
         execution_time: 0
       };
-
-      // Store the error result
-      setExecutionResults(prev => ({
-        ...prev,
-        [executionId]: errorResult
-      }));
-
-      return errorResult;
     }
-  }, [executionResults, canceledExecutions]);
+
+    const errorResult: ExecutionResult = {
+      success: false,
+      output: '',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      execution_time: 0
+    };
+
+    // Store the error result
+    setExecutionResults(prev => ({
+      ...prev,
+      [executionId]: errorResult
+    }));
+
+    return errorResult;
+  }
+}, [executionResults, canceledExecutions, getExecutionResult]);
 
   return (
     <PythonExecutionContext.Provider

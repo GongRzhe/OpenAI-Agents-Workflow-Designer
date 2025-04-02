@@ -146,6 +146,7 @@ export const getExecutionResult = async (executionId: string): Promise<Execution
             const errorText = await response.text();
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
+        console.log('API response for execution result:', await response.json());
 
         return await response.json();
     } catch (error) {

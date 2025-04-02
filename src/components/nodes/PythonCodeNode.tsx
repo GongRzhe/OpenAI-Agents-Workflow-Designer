@@ -70,72 +70,66 @@ const PythonCodeNode: React.FC<NodeProps<PythonCodeNodeData>> = ({ id, data, isC
         let isMounted = true;
         let timeoutId: ReturnType<typeof setTimeout> | null = null;
         const startTime = Date.now();
-        const MAX_POLLING_TIME = 30000; // 30 seconds max polling
+        const MAX_POLLING_TIME = 60000; // Increase to 60 seconds max polling
         
         const fetchResult = async () => {
-            if (!isMounted || !data.executionId) return;
+          if (!isMounted || !data.executionId) return;
+          
+          // Force stop polling after MAX_POLLING_TIME
+          if (Date.now() - startTime > MAX_POLLING_TIME) {
+            console.log(`Execution ${data.executionId} timed out after ${MAX_POLLING_TIME / 1000} seconds`);
+            if (isMounted) {
+              setIsExecuting(false);
+              setStatus('error');
+              setErrorMessage('Execution exceeded maximum time limit');
+            }
+            return;
+          }
+          
+          try {
+            // First check status to avoid redundant result fetching
+            const currentStatus = await getExecutionStatus(data.executionId);
             
-            // Force stop polling after MAX_POLLING_TIME
-            if (Date.now() - startTime > MAX_POLLING_TIME) {
-                console.log(`Execution ${data.executionId} timed out after ${MAX_POLLING_TIME / 1000} seconds`);
-                if (isMounted) {
-                    setIsExecuting(false);
-                    setStatus('error');
-                    setErrorMessage('Execution exceeded maximum time limit');
+            // Only fetch result if not running (either completed or error)
+            if (currentStatus !== 'running') {
+              const executionResult = await getResult(data.executionId);
+              console.log('Received execution result:', executionResult);
+              
+              if (isMounted) {
+                setResult(executionResult);
+                setStatus(currentStatus);
+                setIsExecuting(false);
+                
+                // Add this line to clear error message on success
+                if (executionResult.success) {
+                  setErrorMessage('');
                 }
-                return;
+              }
+              return; // No need to schedule another check
             }
             
-            try {
-                // First check status to avoid redundant result fetching
-                const currentStatus = await getExecutionStatus(data.executionId);
-                
-                // Only fetch result if not running (either completed or error)
-                if (currentStatus !== 'running') {
-                    const executionResult = await getResult(data.executionId);
-                    
-                    if (isMounted) {
-                        setResult(executionResult);
-                        setStatus(currentStatus);
-                        setIsExecuting(false);
-                        
-                        // Add this line to clear error message on success
-                        if (executionResult.success) {
-                            setErrorMessage('');
-                        }
-                    }
-                    return; // No need to schedule another check
-                }
-                
-                // If still running, schedule next check with progressive backoff
-                if (isMounted) {
-                    // Calculate next check time (start with 1s, gradually increase)
-                    const elapsedTime = Date.now() - startTime;
-                    const nextInterval = Math.min(
-                        1000 + Math.floor(elapsedTime / 5000) * 500, // Gradually increase interval
-                        3000 // Cap at 3 seconds
-                    );
-                    
-                    timeoutId = setTimeout(fetchResult, nextInterval);
-                }
-            } catch (error) {
-                console.error('Error fetching execution result:', error);
-                if (isMounted) {
-                    setStatus('error');
-                    setIsExecuting(false);
-                    setErrorMessage('Error checking execution status');
-                }
+            // If still running, schedule next check with shorter intervals
+            if (isMounted) {
+              timeoutId = setTimeout(fetchResult, 1000); // Check every second
             }
+          } catch (error) {
+            console.error('Error fetching execution result:', error);
+            if (isMounted) {
+              setStatus('error');
+              setIsExecuting(false);
+              setErrorMessage('Error checking execution status');
+            }
+          }
         };
         
         // Initial check
         fetchResult();
         
         return () => {
-            isMounted = false;
-            if (timeoutId) clearTimeout(timeoutId);
+          isMounted = false;
+          if (timeoutId) clearTimeout(timeoutId);
         };
-    }, [data.executionId, status, getExecutionStatus, getResult]);
+      }, [data.executionId, status, getExecutionStatus, getResult]);
 
     // Handler for text input changes
     const handleInputChange = useCallback(
