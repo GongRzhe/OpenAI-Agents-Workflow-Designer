@@ -1,11 +1,6 @@
 // src/utils/pythonBridge.ts
-// API bridge for communicating with the Python backend
+const API_BASE_URL = process.env.REACT_APP_PYTHON_API_URL || 'http://localhost:8888';
 
-// Import environment variables
-// NOTE: Add .env file to the project root with API_URL variable
-// Or update this to read from a config.ts file
-// const API_BASE_URL = process.env.REACT_APP_PYTHON_API_URL || 'http://localhost:8888';
-const API_BASE_URL = 'http://localhost:8888';
 // Type definitions
 export interface ExecutionResult {
     success: boolean;
