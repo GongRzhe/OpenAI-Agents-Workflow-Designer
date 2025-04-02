@@ -14,18 +14,22 @@
   - Beautified scrollbars and dropdowns with sci-fi theme
   - Moved delete button to navbar
   - Optimized for different screen sizes
-
-### In Progress 🔄
-
-- [ ] **XYZ-006**: Implement Python code execution environment (80%)
-  - [x] Created Python virtual environment in SandBox directory
-  - [x] Implemented execution bridge with FastAPI
-  - [x] Added dependency management for generated code
-  - [x] Created execution results display in UI
+- [x] **XYZ-006**: Implement Python code execution environment (100%)
+  - Created Python virtual environment in SandBox directory
+  - Implemented execution bridge with FastAPI
+  - Added dependency management for generated code
+  - Created execution results display in UI
 
 ## Upcoming Tasks
 
 ### High Priority 🔴
+
+- [ ] **XYZ-009**: Implement MCP Node
+  - Create MCPNode component with server configuration options
+  - Support for Git, Filesystem, and custom MCP servers
+  - Update code generator to handle MCP nodes
+  - Integrate with Agent nodes
+  - Add documentation and examples
 
 - [ ] **XYZ-007**: Fix React compatibility issues
   - Update React version from 19.0.0 (future version) to 18.2.0
@@ -75,6 +79,7 @@
   - Multi-agent conversation templates
   - Tool integration examples
   - Python code execution examples
+  - MCP server examples
   - Template gallery with previews
 
 - [ ] **ABC-005**: Add OpenAI API testing integration
@@ -128,10 +133,12 @@
 
 ## Priority Order for Next Sprint
 
-1. **XYZ-006**: Complete Python code execution implementation
-   - Fix remaining bugs in PythonCodeNode component
-   - Implement proper validation and error handling
-   - Add Python Bridge status indicator
+1. **XYZ-009**: Implement MCP Node
+   - Create MCPNode component structure
+   - Implement UI for server configuration
+   - Update code generator for MCP nodes
+   - Test with Git and Filesystem MCP servers
+   - Add documentation and examples
 
 2. **XYZ-007**: Fix React compatibility issues
    - Update package.json with correct React version and dependencies

@@ -17,6 +17,7 @@ Thanks to AI master [AI超元域](https://www.youtube.com/watch?v=KQULGx6wjco) a
   - Runner nodes (execution environments)
   - Function Tool nodes (custom Python functions)
   - Python Code nodes (directly execute Python code)
+  - MCP nodes (Model Context Protocol servers for external tools)
 - **Connection System**: Visually connect components to define relationships and data flow
 - **Node Customization**: Resize and configure nodes with intuitive controls
 - **Node Management**: Delete nodes and connections via keyboard shortcuts, context menu or navbar button
@@ -27,6 +28,11 @@ Thanks to AI master [AI超元域](https://www.youtube.com/watch?v=KQULGx6wjco) a
 
 ## Recent Enhancements
 
+- **MCP Node Integration**: Connect agents with Model Context Protocol servers
+  - Support for Git, Filesystem, and custom MCP servers
+  - Configure MCP parameters visually
+  - Generate full MCP connection code
+  - Seamless integration with the rest of the workflow
 - **Python Code Execution Environment**: Execute Python code directly from the UI
   - FastAPI backend with sandboxed execution
   - Real-time execution status and results
@@ -35,7 +41,7 @@ Thanks to AI master [AI超元域](https://www.youtube.com/watch?v=KQULGx6wjco) a
 - **Improved Connection Points**: Enhanced node connection points with clearer visual indicators and color-coding
 - **Better Scrollbars and Dropdowns**: Redesigned with sci-fi theme styling for improved usability
 - **Optimized Delete Functionality**: Delete button moved to the navbar for easier access
-- **Connection Type Indicators**: Visual indicators showing different types of connections (Agent, Runner, Tool, Python)
+- **Connection Type Indicators**: Visual indicators showing different types of connections (Agent, Runner, Tool, Python, MCP)
 
 ## Installation
 
@@ -126,6 +132,13 @@ Directly write and execute Python code within the application.
 - Output display with execution results and error messages
 - Supports both synchronous and asynchronous execution
 
+#### MCP Node
+Model Context Protocol servers that provide external tools to agents.
+- Connect to Git, Filesystem, or custom MCP servers
+- Configure server parameters (command, arguments, etc.)
+- Automatically generate MCP connection code
+- Connect to Agent nodes to extend their capabilities
+
 ### Keyboard Shortcuts
 
 - **Delete/Backspace**: Delete selected nodes or edges
@@ -154,6 +167,7 @@ OpenAI-Agents-Workflow-Designer/
 │   │   └── nodes/      # Custom node implementations
 │   │       ├── AgentNode.tsx           # Agent node component
 │   │       ├── FunctionToolNode.tsx    # Function Tool node component
+│   │       ├── MCPNode.tsx             # MCP node component
 │   │       ├── PythonCodeNode.tsx      # Python Code node component
 │   │       └── RunnerNode.tsx          # Runner node component
 │   ├── context/        # React context providers
@@ -215,6 +229,25 @@ The Python Code Execution system enables direct Python code execution within the
    - Synchronous execution for quick, simple code
    - Asynchronous execution with status polling for complex code
 
+### MCP Node Integration
+
+The MCP Node system enables connection to Model Context Protocol servers:
+
+1. **Frontend Components**:
+   - MCPNode.tsx - UI component with server configuration options
+   - NodeDataContext.tsx - State management for MCP node data
+
+2. **Code Generation**:
+   - Automatic generation of MCP server connection code
+   - Integration with Agent nodes for tool access
+
+3. **MCP Server Types**:
+   - Git - For repository analysis
+   - Filesystem - For file access and manipulation
+   - Custom - For other MCP-compatible servers
+   - Stdio - For command-line tool integration
+   - SSE - For event stream communication
+
 ## Troubleshooting
 
 ### Common Issues
@@ -225,6 +258,7 @@ The Python Code Execution system enables direct Python code execution within the
 - **Text Selection**: Use the nodrag class for interactive elements within nodes to prevent unwanted dragging
 - **Connection Issues**: Check that handle IDs are correctly configured in node components
 - **Python Execution Errors**: Check the SandBox/.env file for correct configuration
+- **MCP Connection Errors**: Verify that required MCP server packages are installed and configured correctly
 
 ### Browser Compatibility
 
@@ -238,6 +272,7 @@ This application works best in modern browsers (Chrome, Firefox, Edge, Safari). 
 - Template workflows
 - OpenAI API integration for live testing
 - Enhanced Python code execution with dependency management
+- More MCP server templates and presets
 
 ## License
 
@@ -259,3 +294,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - [React Flow](https://reactflow.dev/) for the excellent node-based interface library
 - [Material-UI](https://mui.com/) for the comprehensive UI component library
 - [FastAPI](https://fastapi.tiangolo.com/) for the high-performance Python web framework
+- [Model Context Protocol](https://modelcontextprotocol.io/) for the tool integration specification
