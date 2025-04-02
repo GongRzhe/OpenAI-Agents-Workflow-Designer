@@ -3,10 +3,10 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import {
   executePythonCode,
   executeCodeAsync,
-  getExecutionStatus,
+  getExecutionStatus as getBridgeExecutionStatus,
   getExecutionResult,
-  stopExecution as stopExecutionApi,
-  checkPythonBridgeStatus
+  checkPythonBridgeStatus,
+  ExecutionStatus as BridgeExecutionStatus
 } from '../utils/pythonBridge';
 
 // Define types
@@ -21,7 +21,7 @@ export interface ExecutionResult {
 
 interface PythonExecutionContextType {
   executeCode: (code: string) => Promise<string>; // Returns execution ID
-  stopExecution: (executionId: string) => Promise<void>;
+  stopExecution: (executionId: string) => Promise<void>; // Now handled locally
   getExecutionStatus: (executionId: string) => Promise<ExecutionStatus>;
   getResult: (executionId: string) => Promise<ExecutionResult>;
   executionResults: Record<string, ExecutionResult>;
@@ -42,10 +42,13 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
   const [pendingExecutions, setPendingExecutions] = useState<Record<string, number>>({});
   const [pollAttemptsMap, setPollAttemptsMap] = useState<Record<string, number>>({});
 
+  // Track canceled executions (since API no longer has stopExecution)
+  const [canceledExecutions, setCanceledExecutions] = useState<Set<string>>(new Set());
+
   // Check Python bridge status on component mount
   useEffect(() => {
     refreshBridgeStatus();
-    
+
     // Check every 30 seconds
     const intervalId = setInterval(refreshBridgeStatus, 30000);
     return () => clearInterval(intervalId);
@@ -72,22 +75,27 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
         const result = await executePythonCode(code);
         // Generate a pseudo execution ID
         const executionId = `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         // Store the result
         setExecutionResults(prev => ({
           ...prev,
           [executionId]: result
         }));
-        
+
         return executionId;
       } else {
         // For larger code or code with asyncio, execute asynchronously
-        const { execution_id } = await executeCodeAsync(code);
-        
+        const result = await executeCodeAsync(code);
+        const executionId = result.execution_id;
+
+        if (!executionId) {
+          throw new Error('No execution ID returned from async execution');
+        }
+
         // Reset retry counter for this execution
-        executionRetries.current[execution_id] = 0;
-        
-        return execution_id;
+        executionRetries.current[executionId] = 0;
+
+        return executionId;
       }
     } catch (error) {
       console.error('Error executing Python code:', error);
@@ -95,99 +103,135 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
     }
   }, []);
 
-  // Stop a running execution
+  // Stop a running execution (now handled locally since API endpoint was removed)
   const stopExecution = useCallback(async (executionId: string): Promise<void> => {
-    try {
-      // Only call the API for async executions
-      if (!executionId.startsWith('sync-')) {
-        await stopExecutionApi(executionId);
-      }
-      
-      // Remove from retry counter
-      if (executionRetries.current[executionId]) {
-        delete executionRetries.current[executionId];
-      }
-    } catch (error) {
-      console.error('Error stopping execution:', error);
+    // For sync executions, nothing to do
+    if (executionId.startsWith('sync-')) {
+      return;
     }
+
+    // Mark as canceled locally
+    setCanceledExecutions(prev => {
+      const updated = new Set(prev);
+      updated.add(executionId);
+      return updated;
+    });
+
+    // Remove from retry counter
+    if (executionRetries.current[executionId]) {
+      delete executionRetries.current[executionId];
+    }
+
+    // Add a canceled result
+    setExecutionResults(prev => ({
+      ...prev,
+      [executionId]: {
+        success: false,
+        output: 'Execution canceled by user',
+        error: 'Execution canceled',
+        execution_time: 0
+      }
+    }));
   }, []);
 
+  // Map API execution status to our local status
+  const mapExecutionStatus = (apiStatus: BridgeExecutionStatus): ExecutionStatus => {
+    switch (apiStatus) {
+      case 'running': return 'running';
+      case 'completed': return 'completed';
+      case 'error': return 'error';
+      case 'unknown':
+      default: return 'idle';
+    }
+  };
+
+  // Get current execution status
   // Get current execution status
   const getExecutionStatus = useCallback(async (executionId: string): Promise<ExecutionStatus> => {
     // For sync executions, check the local state
     if (executionId.startsWith('sync-')) {
-      return executionResults[executionId] ? 
-        (executionResults[executionId].success ? 'completed' : 'error') : 
+      return executionResults[executionId] ?
+        (executionResults[executionId].success ? 'completed' : 'error') :
         'running';
     }
-    
+
+    // If marked as canceled, return error
+    if (canceledExecutions.has(executionId)) {
+      return 'error';
+    }
+
     // Prevent excessive polling for the same execution ID
     const pendingCount = pendingExecutions[executionId] || 0;
-    if (pendingCount > 5) {
-      // Too many pending requests for this execution, return error
-      const errorResult: ExecutionResult = {
+  if (pendingCount > 30) {
+    // Too many pending requests for this execution
+    setExecutionResults(prev => ({
+      ...prev,
+      [executionId]: {
         success: false,
         output: '',
         error: 'Execution timed out or server is not responding properly',
         execution_time: 0
-      };
-      
-      setExecutionResults(prev => ({
-        ...prev,
-        [executionId]: errorResult
-      }));
-      
-      // Clear pending count
-      setPendingExecutions(prev => {
-        const updated = {...prev};
-        delete updated[executionId];
-        return updated;
-      });
-      
-      return 'error';
-    }
+      }
+    }));
     
+    // Clear pending count
+    setPendingExecutions(prev => {
+      const updated = { ...prev };
+      delete updated[executionId];
+      return updated;
+    });
+    
+    return 'error';
+  }
+
     // Track that we're checking this execution
     setPendingExecutions(prev => ({
       ...prev,
       [executionId]: pendingCount + 1
     }));
-    
+
     try {
-      const status = await getExecutionStatus(executionId);
-      
+      // Use the bridge function but convert the result
+      const bridgeStatus = await getBridgeExecutionStatus(executionId);
+
+      // Map the bridge status to our local status type
+      const status: ExecutionStatus =
+        bridgeStatus === 'running' ? 'running' :
+          bridgeStatus === 'completed' ? 'completed' :
+            bridgeStatus === 'error' ? 'error' : 'idle';
+
       // If completed or error, fetch the result
       if (status === 'completed' || status === 'error') {
         const result = await getExecutionResult(executionId);
-        
+
         // Store the result
         setExecutionResults(prev => ({
           ...prev,
           [executionId]: result
         }));
-        
+
         // Clear pending count
         setPendingExecutions(prev => {
-          const updated = {...prev};
+          const updated = { ...prev };
           delete updated[executionId];
           return updated;
         });
       }
-      
+
       return status;
     } catch (error) {
       console.error('Error getting execution status:', error);
-      
+
       // Clear pending count on error
       setPendingExecutions(prev => {
-        const updated = {...prev};
+        const updated = { ...prev };
         delete updated[executionId];
         return updated;
       });
-      
+
       return 'error';
     }
-  }, [executionResults, pendingExecutions]);
+  }, [executionResults, pendingExecutions, canceledExecutions]);
 
   // Get execution result
   const getResult = useCallback(async (executionId: string): Promise<ExecutionResult> => {
@@ -195,7 +239,17 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
     if (executionResults[executionId]) {
       return executionResults[executionId];
     }
-    
+
+    // If marked as canceled, return canceled result
+    if (canceledExecutions.has(executionId)) {
+      return {
+        success: false,
+        output: 'Execution canceled by user',
+        error: 'Execution canceled',
+        execution_time: 0
+      };
+    }
+
     // For sync executions that somehow don't have a result
     if (executionId.startsWith('sync-')) {
       return {
@@ -205,59 +259,56 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
         execution_time: 0
       };
     }
+
     // Track polling attempts
     const currentAttempts = pollAttemptsMap[executionId] || 0;
     if (currentAttempts > 10) { // Limit to 10 attempts
-        const errorResult: ExecutionResult = {
-            success: false,
-            output: '',
-            error: 'Execution polling exceeded maximum attempts',
-            execution_time: 0
-        };
-        
-        setExecutionResults(prev => ({
-            ...prev,
-            [executionId]: errorResult
-        }));
-        
-        return errorResult;
+      const errorResult: ExecutionResult = {
+        success: false,
+        output: '',
+        error: 'Execution polling exceeded maximum attempts',
+        execution_time: 0
+      };
+
+      setExecutionResults(prev => ({
+        ...prev,
+        [executionId]: errorResult
+      }));
+
+      return errorResult;
     }
-    
+
     // Update attempt counter
     setPollAttemptsMap(prev => ({
-        ...prev,
-        [executionId]: currentAttempts + 1
+      ...prev,
+      [executionId]: currentAttempts + 1
     }));
-    
+
     try {
       const result = await getExecutionResult(executionId);
-      
+
       // Store the result
       setExecutionResults(prev => ({
         ...prev,
         [executionId]: result
       }));
-      
-      // // Clear retry counter
-      // if (executionRetries.current[executionId]) {
-      //   delete executionRetries.current[executionId];
-      // }
+
       // Reset polling attempts on success
       setPollAttemptsMap(prev => {
-        const updated = {...prev};
+        const updated = { ...prev };
         delete updated[executionId];
         return updated;
-    });
-      
+      });
+
       return result;
     } catch (error) {
       console.error('Error getting execution result:', error);
-      
+
       // Add retry handling for 202 responses
       if (error && String(error).includes('202')) {
         const currentRetries = executionRetries.current[executionId] || 0;
         executionRetries.current[executionId] = currentRetries + 1;
-        
+
         // If we've tried too many times, return an error
         if (currentRetries >= 5) {
           const errorResult: ExecutionResult = {
@@ -266,19 +317,19 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
             error: 'Execution timed out or server is not responding properly',
             execution_time: 0
           };
-          
+
           // Store the error result
           setExecutionResults(prev => ({
             ...prev,
             [executionId]: errorResult
           }));
-          
+
           // Clear retry counter
           delete executionRetries.current[executionId];
-          
+
           return errorResult;
         }
-        
+
         // If we haven't reached max retries, return a pending result
         return {
           success: false,
@@ -287,23 +338,23 @@ export const PythonExecutionProvider: React.FC<{ children: React.ReactNode }> = 
           execution_time: 0
         };
       }
-      
+
       const errorResult: ExecutionResult = {
         success: false,
         output: '',
         error: error instanceof Error ? error.message : 'Unknown error',
         execution_time: 0
       };
-      
+
       // Store the error result
       setExecutionResults(prev => ({
         ...prev,
         [executionId]: errorResult
       }));
-      
+
       return errorResult;
     }
-  }, [executionResults]);
+  }, [executionResults, canceledExecutions]);
 
   return (
     <PythonExecutionContext.Provider

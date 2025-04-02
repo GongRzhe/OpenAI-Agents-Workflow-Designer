@@ -5,13 +5,10 @@ import sys
 import traceback
 import time
 import os
-import signal
 import multiprocessing
-import tempfile
-import subprocess
 import psutil
 from contextlib import redirect_stdout, redirect_stderr
-from typing import Tuple, List, Dict, Any, Optional
+from typing import Tuple, Dict, Optional
 
 # Define resource limits
 MAX_CPU_TIME = 30  # seconds
@@ -19,24 +16,16 @@ MAX_MEMORY = 512 * 1024 * 1024  # 512 MB
 
 def set_process_limits():
     """Set resource limits for the subprocess."""
-    # Import resource only when needed (not available on Windows)
     try:
         import resource
-        # Set CPU time limit
         resource.setrlimit(resource.RLIMIT_CPU, (MAX_CPU_TIME, MAX_CPU_TIME))
-        
-        # Set memory limit
         resource.setrlimit(resource.RLIMIT_AS, (MAX_MEMORY, MAX_MEMORY))
     except ImportError:
         # On Windows, psutil will be used for monitoring instead
         pass
 
 def sanitize_code(code: str) -> str:
-    """
-    Sanitize the code to prevent harmful operations.
-    This is a simple sanitization and should be expanded for production use.
-    """
-    # List of blocked modules/functions that could be dangerous
+    """Sanitize the code to prevent harmful operations."""
     blocked_imports = [
         "subprocess",
         "os.system",
@@ -44,7 +33,6 @@ def sanitize_code(code: str) -> str:
         "sys.exit",
     ]
     
-    # Check for blocked imports
     for blocked in blocked_imports:
         if f"import {blocked}" in code or f"from {blocked}" in code:
             raise ValueError(f"Blocked import detected: {blocked}")
@@ -59,51 +47,37 @@ class CodeExecutionProcess(multiprocessing.Process):
         self.code = code
         self.result_queue = result_queue
         self.env_vars = env_vars or {}
-        self.daemon = True  # Process will be terminated when the parent exits
+        self.daemon = True
 
     def run(self):
         """Run the code in isolation with captured output."""
         try:
-            # Set resource limits (Unix-like only)
             set_process_limits()
             
-            # Apply environment variables
             original_env = None
             if self.env_vars:
                 original_env = os.environ.copy()
                 os.environ.update(self.env_vars)
             
-            # Capture stdout and stderr
             stdout_capture = io.StringIO()
             stderr_capture = io.StringIO()
             
-            # Execute the code with captured output
             with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-                # Prepare a safe namespace for execution
                 local_namespace = {}
-                
-                # Execute the code
                 exec(self.code, {}, local_namespace)
             
-            # Get the captured output
             stdout = stdout_capture.getvalue()
             stderr = stderr_capture.getvalue()
             
-            # Restore environment if needed
             if original_env:
                 os.environ.clear()
                 os.environ.update(original_env)
             
-            # Send success result
             self.result_queue.put((True, stdout, None))
             
         except Exception as e:
-            # Get the traceback
             stderr = traceback.format_exc()
-            
-            # Send error result
             self.result_queue.put((False, "", stderr))
-
 
 def _terminate_process_and_children(pid):
     """Helper function to terminate a process and all its children."""
@@ -122,51 +96,41 @@ def _terminate_process_and_children(pid):
         parent.terminate()
         parent.wait(3)
         
-        # Force kill if still alive
         if parent.is_running():
             parent.kill()
     except:
-        # Process might already be gone
-        pass    
+        pass
+
 async def execute_python_code(code: str, timeout: int = 30, env_vars: dict = None) -> Tuple[bool, str, str]:
     """Execute Python code in a sandboxed environment with timeout."""
-    # Sanitize code first
     try:
         sanitized_code = sanitize_code(code)
     except ValueError as e:
         return False, "", f"Code validation error: {str(e)}"
     
-    # Create queue and process
     result_queue = multiprocessing.Queue()
     process = CodeExecutionProcess(sanitized_code, result_queue, env_vars)
     process.start()
     pid = process.pid
     
     try:
-        # Wait for result with proper timeout handling
         start_time = time.time()
         while process.is_alive() and time.time() - start_time < timeout:
             try:
                 success, output, error = result_queue.get(timeout=0.1)
-                
-                # Properly clean up process and any children
                 _terminate_process_and_children(pid)
-                
                 return success, output, error
             except queue.Empty:
                 await asyncio.sleep(0.1)
         
-        # Handle timeout
         if process.is_alive():
             _terminate_process_and_children(pid)
             return False, "", f"Execution timed out after {timeout} seconds"
             
     except Exception as e:
-        # Handle unexpected errors
         _terminate_process_and_children(pid)
         return False, "", f"Error running code: {str(e)}"
     
-    # Check queue one last time
     try:
         if not result_queue.empty():
             return result_queue.get(timeout=0.1)
@@ -174,106 +138,3 @@ async def execute_python_code(code: str, timeout: int = 30, env_vars: dict = Non
         pass
     
     return False, "", "Execution failed with unknown error"
-
-async def get_installed_packages() -> List[str]:
-    """Get a list of installed Python packages."""
-    result = subprocess.run(
-        [sys.executable, "-m", "pip", "freeze"],
-        capture_output=True,
-        text=True
-    )
-    
-    if result.returncode != 0:
-        raise Exception("Failed to list installed packages")
-    
-    # Parse the output
-    packages = [
-        line.strip() 
-        for line in result.stdout.split('\n') 
-        if line.strip()
-    ]
-    
-    return packages
-
-async def execute_agent_code(code: str, timeout: int = 30) -> Tuple[bool, str, str]:
-    """
-    Execute OpenAI Agents code with specific handling for agent-related imports.
-    """
-    # Check if openai-agents is installed
-    try:
-        import importlib
-        agents_spec = importlib.util.find_spec("agents")
-        if agents_spec is None:
-            return False, "", "OpenAI Agents package is not installed"
-    except ImportError:
-        return False, "", "OpenAI Agents package is not installed"
-    
-    # Add required imports
-    if "import asyncio" not in code:
-        code = "import asyncio\n" + code
-        
-    if "from agents import" not in code and "import agents" not in code:
-        code = "from agents import Agent, Runner\n" + code
-    
-    # Ensure proper main function
-    if "asyncio.run" not in code and "if __name__" not in code:
-        if "async def main" not in code:
-            # Separate imports from code
-            lines = code.split("\n")
-            imports = []
-            main_lines = []
-            
-            for line in lines:
-                if line.startswith("import ") or line.startswith("from "):
-                    imports.append(line)
-                elif line.strip():
-                    main_lines.append("    " + line)
-            
-            # Recreate the code with proper structure
-            code = "\n".join(imports)
-            code += "\n\nasync def main():\n" + "\n".join(main_lines)
-            code += "\n\nif __name__ == \"__main__\":\n    asyncio.run(main())"
-    
-    # Use execute_as_script instead of execute_python_code
-    success, output, error = await execute_as_script(code, timeout)
-    
-    # When successful, make sure error is None to match the test expectation
-    if success and not error:
-        error = None
-        
-    return success, output, error
-
-# A modified version of code execution that creates a temp file and runs as a script
-# This is useful for more complex code that may have import issues when using exec
-async def execute_as_script(code: str, timeout: int = 30) -> Tuple[bool, str, str]:
-    """Execute Python code by creating a temporary script file and running it."""
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(suffix='.py', delete=False, mode='w') as temp_file:
-        temp_file_path = temp_file.name
-        temp_file.write(code)
-    
-    try:
-        # Run the script in a subprocess
-        process = subprocess.Popen(
-            [sys.executable, temp_file_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        # Monitor the process with timeout
-        try:
-            stdout, stderr = process.communicate(timeout=timeout)
-            success = process.returncode == 0
-            return success, stdout, stderr
-        except subprocess.TimeoutExpired:
-            # Kill the process if it times out
-            process.kill()
-            _, stderr = process.communicate()
-            return False, "", f"Execution timed out after {timeout} seconds\n{stderr}"
-    finally:
-        # Clean up the temporary file
-        try:
-            os.unlink(temp_file_path)
-        except:
-            pass

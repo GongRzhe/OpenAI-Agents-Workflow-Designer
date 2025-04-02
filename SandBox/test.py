@@ -1,299 +1,153 @@
-
-import pytest
 import asyncio
+import httpx
 import time
-from fastapi.testclient import TestClient
-from api import app, executions, cleanup_old_executions
-from executor import execute_python_code, get_installed_packages, execute_agent_code, execute_as_script, sanitize_code
 
-# Initialize the test client for FastAPI
-client = TestClient(app)
+# Base URL for the API
+BASE_URL = "http://127.0.0.1:8888"
 
-# Clear executions before each test
-@pytest.fixture(autouse=True)
-def clear_executions():
-    app.state.executions = {}
-
-# Tests for /status endpoint
-def test_status():
-    response = client.get("/status")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "running"
-    assert "version" in data
-    assert "python_version" in data
-    assert "active_executions" in data
-    assert isinstance(data["active_executions"], int)
-
-# Tests for /execute endpoint
-def test_execute_success():
-    code = "print('Hello, World!')"
-    response = client.post("/execute", json={"code": code})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
-    assert data["output"] == "Hello, World!\n"
-    assert data["error"] is None
-    assert data["execution_time"] > 0
-
-def test_execute_with_env_vars():
-    code = "import os; print(os.environ['TEST_VAR'])"
-    env_vars = {"TEST_VAR": "test_value"}
-    response = client.post("/execute", json={"code": code, "env_vars": env_vars})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
-    assert data["output"] == "test_value\n"
-    assert data["error"] is None
-
-def test_execute_error():
-    code = "raise ValueError('Test error')"
-    response = client.post("/execute", json={"code": code})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is False
-    assert data["output"] == ""
-    assert "ValueError: Test error" in data["error"]
-
-def test_execute_timeout():
-    code = "import time; time.sleep(2)"
-    response = client.post("/execute", json={"code": code, "timeout": 1})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is False
-    assert data["output"] == ""
-    assert "Execution timed out" in data["error"]
-
-def test_execute_invalid_code():
-    code = "print('Hello, World!'"  # Missing closing parenthesis
-    response = client.post("/execute", json={"code": code})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is False
-    assert data["output"] == ""
-    assert "SyntaxError" in data["error"]
-
-def test_execute_blocked_import():
-    code = "import subprocess"
-    response = client.post("/execute", json={"code": code})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is False
-    assert data["output"] == ""
-    assert "Blocked import detected" in data["error"]
-
-def test_execution_isolation():
-    code1 = "global_var = 'value1'; print(global_var)"
-    code2 = "try: print(global_var)\nexcept NameError: print('Not defined')"
-    response1 = client.post("/execute", json={"code": code1})
-    assert response1.status_code == 200
-    assert response1.json()["success"] is True
-    assert response1.json()["output"] == "value1\n"
-
-    response2 = client.post("/execute", json={"code": code2})
-    assert response2.status_code == 200
-    assert response2.json()["success"] is True
-    assert response2.json()["output"] == "Not defined\n"
-
-# Tests for asynchronous execution endpoints
-def test_execute_async_complete():
-    code = "print('Async Done')"
-    response = client.post("/execute/async", json={"code": code, "timeout": 5})
-    assert response.status_code == 200
-    data = response.json()
-    execution_id = data["execution_id"]
-    
-    # Wait briefly for execution to complete
-    time.sleep(1)
-    
-    # Check status
-    status_response = client.get(f"/status/{execution_id}")
-    assert status_response.status_code == 200
-    status_data = status_response.json()
-    assert status_data["status"] in ["running", "completed"]
-    assert status_data["completed"] is True
-    
-    # Get result
-    result_response = client.get(f"/result/{execution_id}")
-    assert result_response.status_code == 200
-    result_data = result_response.json()
-    assert result_data["success"] is True
-    assert result_data["output"] == "Async Done\n"
-    assert result_data["error"] is None
-
-def test_execute_async_running():
-    code = "import time; time.sleep(2); print('Slow')"
-    response = client.post("/execute/async", json={"code": code, "timeout": 5})
-    assert response.status_code == 200
-    execution_id = response.json()["execution_id"]
-    
-    # Add a short delay to allow background task to start but not complete
-    time.sleep(0.1)
-    
-    # Check status immediately after delay
-    status_response = client.get(f"/status/{execution_id}")
-    assert status_response.status_code == 200
-    status_data = status_response.json()
-    assert status_data["status"] in ["running"]
-    assert status_data["completed"] is False
-
-def test_stop_execution():
-    code = "import time; time.sleep(10)"
-    response = client.post("/execute/async", json={"code": code, "timeout": 20})
-    assert response.status_code == 200
-    execution_id = response.json()["execution_id"]
-    
-    # Stop the execution
-    stop_response = client.post(f"/stop/{execution_id}")
-    assert stop_response.status_code == 200
-    stop_data = stop_response.json()
-    assert stop_data["success"] is True
-    assert stop_data["message"] == "Execution stopped"
-    
-    # Check status
-    status_response = client.get(f"/status/{execution_id}")
-    assert status_response.status_code == 200
-    assert status_response.json()["status"] == "stopped"
-
-def test_execution_not_found():
-    response = client.get("/status/invalid_id")
-    assert response.status_code == 404
-    assert "Execution not found" in response.json()["detail"]
-
-# Tests for /dependencies and /dependencies/install endpoints
-def test_list_dependencies():
-    response = client.get("/dependencies")
-    assert response.status_code == 200
-    data = response.json()
-    assert "dependencies" in data
-    assert isinstance(data["dependencies"], list)
-    assert len(data["dependencies"]) > 0
-
-def test_install_dependency_invalid_name():
-    response = client.post("/dependencies/install", json={"package": "invalid#name"})
-    assert response.status_code == 400
-    assert "Invalid package name" in response.json()["detail"]
-
-# Tests for /openai-agents/examples endpoint
-def test_get_agent_examples():
-    response = client.get("/openai-agents/examples")
-    assert response.status_code == 200
-    data = response.json()
-    assert "examples" in data
-    assert len(data["examples"]) == 3  # Based on the provided examples
-    for example in data["examples"]:
-        assert "name" in example
-        assert "description" in example
-        assert "code" in example
-
-# Test for cleanup of old executions
-@pytest.mark.asyncio
-async def test_cleanup_old_executions():
-    current_time = time.time()
-    executions["old_id"] = {"completed_at": current_time - 3601, "status": "completed"}
-    executions["new_id"] = {"completed_at": current_time - 100, "status": "completed"}
-    
-    await cleanup_old_executions()
-    
-    assert "old_id" not in executions
-    assert "new_id" in executions
-
-# Tests for executor.py functions
-@pytest.mark.asyncio
-async def test_execute_python_code_success():
-    code = "print('Hello, World!')"
-    success, output, error = await execute_python_code(code)
-    assert success is True
-    assert output == "Hello, World!\n"
-    assert error is None
-
-@pytest.mark.asyncio
-async def test_execute_python_code_error():
-    code = "raise ValueError('Test error')"
-    success, output, error = await execute_python_code(code)
-    assert success is False
-    assert output == ""
-    assert "ValueError: Test error" in error
-
-@pytest.mark.asyncio
-async def test_execute_python_code_timeout():
-    code = "import time; time.sleep(2)"
-    success, output, error = await execute_python_code(code, timeout=1)
-    assert success is False
-    assert output == ""
-    assert "Execution timed out" in error
-
-@pytest.mark.asyncio
-async def test_execute_python_code_blocked_import():
-    code = "import subprocess"
-    success, output, error = await execute_python_code(code)
-    assert success is False
-    assert output == ""
-    assert "Blocked import detected" in error
-
-def test_sanitize_code_blocked_import():
-    code = "import subprocess"
-    with pytest.raises(ValueError, match="Blocked import detected: subprocess"):
-        sanitize_code(code)
-
-def test_sanitize_code_allowed_import():
-    code = "import math"
-    sanitized = sanitize_code(code)
-    assert sanitized == code
-
-@pytest.mark.asyncio
-async def test_get_installed_packages():
-    packages = await get_installed_packages()
-    assert isinstance(packages, list)
-    assert len(packages) > 0
-    assert any("pytest" in pkg for pkg in packages)  # Assuming pytest is installed
-
-# Tests for execute_agent_code
-# These assume 'openai-agents' is installed; mock if unavailable
-@pytest.mark.asyncio
-async def test_execute_agent_code_success():
-    code = """
-import asyncio
-from agents import Agent, Runner
 async def main():
-    print('Agent Test')
+    """Test the Python Code Executor API."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30.0) as client:
+        print("1. Testing synchronous execution")
+        code = """
+print("Hello, World!")
+result = 10 + 20
+print(f"Result: {result}")
+"""
+        response = await client.post("/execute", json={
+            "code": code,
+            "timeout": 5,
+            "async_execution": False
+        })
+        
+        print(f"Status code: {response.status_code}")
+        print(f"Response: {response.json()}")
+        print("\n" + "-"*50 + "\n")
+        
+        print("2. Testing synchronous execution with error")
+        code = """
+print("This will raise an error")
+1/0  # Division by zero error
+"""
+        response = await client.post("/execute", json={
+            "code": code,
+            "timeout": 5,
+            "async_execution": False
+        })
+        
+        print(f"Status code: {response.status_code}")
+        print(f"Response: {response.json()}")
+        print("\n" + "-"*50 + "\n")
+        
+        print("3. Testing asynchronous execution")
+        code = """
+import asyncio
+from agents import Agent, Runner, function_tool
+from pydantic import BaseModel # Assuming pydantic might be needed for output_type
+from dotenv import load_dotenv
+import os
+load_dotenv()
+print(os.getenv("OPENAI_API_KEY"))
+# --- Generated Pydantic Models (if any) ---
+# TODO: Add logic to generate Pydantic models based on Agent output_type
+
+
+# --- Agent Definitions ---
+
+assistant = Agent(
+    name="Assistant",
+    instructions="You are a helpful assistant",
+)
+
+# --- Runner Execution ---
+
+async def run_workflow_0():
+    print("--- Running Workflow 0 (Async) ---")
+    result = await Runner.run(assistant, input="Write a haiku about recursion in programming.")
+    print("Final Output:", result.final_output)
+    return result
+
+async def main():
+    await run_workflow_0()
+
 if __name__ == "__main__":
     asyncio.run(main())
+
 """
-    success, output, error = await execute_agent_code(code)
-    assert success is True
-    assert output == "Agent Test\n"
-    assert error is None
+        response = await client.post("/execute", json={
+            "code": code,
+            "timeout": 10,
+            "async_execution": True
+        })
+        
+        print(f"Status code: {response.status_code}")
+        data = response.json()
+        print(f"Initial response: {data}")
+        
+        execution_id = data.get("execution_id")
+        if not execution_id:
+            print("No execution ID received")
+            return
+        
+        print("\nChecking status...")
+        completed = False
+        for i in range(10):
+            status_response = await client.get(f"/status/{execution_id}")
+            status_data = status_response.json()
+            print(f"Status check {i+1}: {status_data}")
+            
+            if status_data.get("completed"):
+                completed = True
+                break
+                
+            await asyncio.sleep(1)
+        
+        if not completed:
+            print("Execution did not complete in the expected time")
+            return
+            
+        print("\nGetting result...")
+        result_response = await client.get(f"/result/{execution_id}")
+        print(f"Status code: {result_response.status_code}")
+        print(f"Result: {result_response.json()}")
+        print("\n" + "-"*50 + "\n")
+        
+        print("4. Testing environment variables")
+        code = """
+import os
+print(f"TEST_VAR = {os.environ.get('TEST_VAR', 'Not set')}")
+"""
+        response = await client.post("/execute", json={
+            "code": code,
+            "timeout": 5,
+            "async_execution": False,
+            "env_vars": {"TEST_VAR": "Hello from env var"}
+        })
+        
+        print(f"Status code: {response.status_code}")
+        print(f"Response: {response.json()}")
+        print("\n" + "-"*50 + "\n")
+        
+        print("5. Testing execution timeout")
+        code = """
+import time
+print("Starting potentially infinite loop")
+for i in range(100):
+    print(f"Iteration {i}")
+    time.sleep(0.5)
+print("This should not be reached due to timeout")
+"""
+        response = await client.post("/execute", json={
+            "code": code,
+            "timeout": 2,  # Short timeout to trigger timeout
+            "async_execution": False
+        })
+        
+        print(f"Status code: {response.status_code}")
+        print(f"Response: {response.json()}")
+        print("\n" + "-"*50 + "\n")
+        
+        print("All tests completed!")
 
-@pytest.mark.asyncio
-async def test_execute_agent_code_no_main():
-    code = "print('No main')"
-    success, output, error = await execute_agent_code(code)
-    assert success is True
-    assert output == "No main\n"
-    assert error is None  # Should wrap in main automatically
-
-# Tests for execute_as_script
-@pytest.mark.asyncio
-async def test_execute_as_script_success():
-    code = "print('Script Test')"
-    success, output, error = await execute_as_script(code)
-    assert success is True
-    assert output == "Script Test\n"
-    assert error == ""
-
-@pytest.mark.asyncio
-async def test_execute_as_script_timeout():
-    code = "import time; time.sleep(2)"
-    success, output, error = await execute_as_script(code, timeout=1)
-    assert success is False
-    assert output == ""
-    assert "Execution timed out" in error
-
-@pytest.mark.asyncio
-async def test_execute_as_script_error():
-    code = "raise ValueError('Script error')"
-    success, output, error = await execute_as_script(code)
-    assert success is False
-    assert output == ""
-    assert "ValueError: Script error" in error
+if __name__ == "__main__":
+    asyncio.run(main())

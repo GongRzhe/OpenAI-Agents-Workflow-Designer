@@ -7,13 +7,10 @@ export interface ExecutionResult {
     output: string;
     error?: string;
     execution_time: number;
+    execution_id?: string;
 }
 
-export interface AsyncExecutionResponse {
-    execution_id: string;
-}
-
-export type ExecutionStatus = 'idle' | 'running' | 'completed' | 'error';
+export type ExecutionStatus = 'running' | 'completed' | 'error' | 'unknown';
 
 // API Configuration
 const API_BASE_URL = 'http://localhost:8888'; // Update this to match your Python API server
@@ -43,6 +40,7 @@ export const executePythonCode = async (code: string, timeout: number = 30): Pro
             body: JSON.stringify({
                 code,
                 timeout,
+                async_execution: false // Explicitly set to synchronous
             }),
             signal: controller.signal,
         });
@@ -78,9 +76,9 @@ export const executePythonCode = async (code: string, timeout: number = 30): Pro
 /**
  * Execute Python code asynchronously
  */
-export const executeCodeAsync = async (code: string, timeout: number = 30): Promise<AsyncExecutionResponse> => {
+export const executeCodeAsync = async (code: string, timeout: number = 30): Promise<ExecutionResult> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/execute/async`, {
+        const response = await fetch(`${API_BASE_URL}/execute`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -88,6 +86,7 @@ export const executeCodeAsync = async (code: string, timeout: number = 30): Prom
             body: JSON.stringify({
                 code,
                 timeout,
+                async_execution: true // Set to asynchronous execution
             }),
         });
 
@@ -112,14 +111,14 @@ export const getExecutionStatus = async (executionId: string): Promise<Execution
 
         if (!response.ok) {
             if (response.status === 404) {
-                return 'idle'; // Execution not found, consider it idle
+                return 'unknown'; // Execution not found
             }
             const errorText = await response.text();
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
 
         const data = await response.json();
-        return data.status;
+        return data.status as ExecutionStatus;
     } catch (error) {
         console.error('Error checking execution status:', error);
         return 'error';
@@ -160,76 +159,6 @@ export const getExecutionResult = async (executionId: string): Promise<Execution
 };
 
 /**
- * Stop a running execution
- */
-export const stopExecution = async (executionId: string): Promise<boolean> => {
-    try {
-        const response = await fetch(`${API_BASE_URL}/stop/${executionId}`, {
-            method: 'POST',
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-        }
-
-        const data = await response.json();
-        return data.success;
-    } catch (error) {
-        console.error('Error stopping execution:', error);
-        return false;
-    }
-};
-
-/**
- * Get a list of installed Python packages
- */
-export const getInstalledPackages = async (): Promise<string[]> => {
-    try {
-        const response = await fetch(`${API_BASE_URL}/dependencies`);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-        }
-
-        const data = await response.json();
-        return data.dependencies;
-    } catch (error) {
-        console.error('Failed to fetch installed packages:', error);
-        throw new Error(error instanceof Error ? error.message : 'Failed to fetch installed packages');
-    }
-};
-
-/**
- * Install a Python package
- */
-export const installPackage = async (packageName: string): Promise<boolean> => {
-    try {
-        const response = await fetch(`${API_BASE_URL}/dependencies/install`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                package: packageName,
-            }),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-        }
-
-        const data = await response.json();
-        return data.success;
-    } catch (error) {
-        console.error('Error installing package:', error);
-        return false;
-    }
-};
-
-/**
  * Check if the Python bridge is available
  */
 export const checkPythonBridgeStatus = async (): Promise<boolean> => {
@@ -247,25 +176,5 @@ export const checkPythonBridgeStatus = async (): Promise<boolean> => {
     } catch (error) {
         console.error('Python bridge is not available:', error);
         return false;
-    }
-};
-
-/**
- * Get example OpenAI Agent code templates
- */
-export const getAgentExamples = async (): Promise<any[]> => {
-    try {
-        const response = await fetch(`${API_BASE_URL}/openai-agents/examples`);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-        }
-
-        const data = await response.json();
-        return data.examples;
-    } catch (error) {
-        console.error('Error fetching agent examples:', error);
-        return [];
     }
 };
